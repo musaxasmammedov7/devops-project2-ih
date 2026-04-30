@@ -65,3 +65,31 @@ jobs:
     - name: Terraform Apply
       if: github.ref == 'refs/heads/main'
       run: terraform apply -auto-approve tfplan
+
+    - name: Extract SonarQube IP
+      if: github.ref == 'refs/heads/main'
+      id: extract_ip
+      run: |
+        SONAR_IP=$(terraform output -raw sonar_public_ip_raw)
+        echo "SONAR_IP=$SONAR_IP" >> $GITHUB_ENV
+        echo "Extracted IP: $SONAR_IP"
+
+    - name: Run Ansible Playbook (Install SonarQube)
+      if: github.ref == 'refs/heads/main'
+      env:
+        ANSIBLE_HOST_KEY_CHECKING: "False"
+      run: |
+        # Setup SSH key for Ansible
+        mkdir -p ~/.ssh
+        echo "${{ secrets.VM_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        
+        # Go to ansible directory
+        cd ../../config/ansible
+        
+        # Inject IP into inventory
+        echo "[sonarqube]" > inventories/prod/hosts
+        echo "$SONAR_IP" >> inventories/prod/hosts
+        
+        # Run Ansible
+        ansible-playbook -i inventories/prod/hosts playbooks/sonarqube.yml

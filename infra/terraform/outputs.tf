@@ -8,6 +8,11 @@ output "sonarqube_url" {
   value       = "http://${module.sonarqube_vm.sonar_public_ip}:9000"
 }
 
+output "sonar_public_ip_raw" {
+  description = "Raw Public IP for Ansible inventory"
+  value       = module.sonarqube_vm.sonar_public_ip
+}
+
 output "sonar_ssh_command" {
   description = "SSH command to connect to SonarQube VM"
   value       = "ssh ${var.vm_admin_username}@${module.sonarqube_vm.sonar_public_ip}" # Собираем команду: ssh имя_пользователя@IP_адрес
