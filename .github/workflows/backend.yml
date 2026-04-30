@@ -66,7 +66,14 @@ jobs:
         ssh-private-key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
 
     - name: Deploy to BE VMSS via SSH
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.VM_SSH_PRIVATE_KEY }}
       run: |
+        # Save private key to file
+        mkdir -p ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        
         # Get SonarQube Public IP
         SONAR_IP=$(az network public-ip show -g musa-project2-rg -n burger-sonar-pip --query ipAddress -o tsv)
         
@@ -75,11 +82,15 @@ jobs:
         Host sonarqube
           HostName $SONAR_IP
           User azureuser
+          IdentityFile ~/.ssh/id_rsa
+          PubkeyAcceptedKeyTypes +ssh-rsa
           StrictHostKeyChecking no
         
         Host 10.0.*
           User azureuser
           ProxyJump sonarqube
+          IdentityFile ~/.ssh/id_rsa
+          PubkeyAcceptedKeyTypes +ssh-rsa
           StrictHostKeyChecking no
         EOF
         chmod 600 ~/.ssh/config
