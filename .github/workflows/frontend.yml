@@ -74,8 +74,35 @@ jobs:
       with:
         creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
 
-    - name: Deploy to Azure Web App
-      uses: azure/webapps-deploy@v3
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.9.0
       with:
-        app-name: ${{ env.AZURE_WEBAPP_NAME }}
-        package: frontend.zip
+        ssh-private-key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+
+    - name: Deploy to FE VMSS via SSH
+      run: |
+        # Get SonarQube Public IP
+        SONAR_IP=$(az network public-ip show -g musa-project2-rg -n burger-sonar-pip --query ipAddress -o tsv)
+        
+        # Setup SSH config for ProxyJump
+        cat << EOF > ~/.ssh/config
+        Host sonarqube
+          HostName $SONAR_IP
+          User azureuser
+          StrictHostKeyChecking no
+        
+        Host 10.0.*
+          User azureuser
+          ProxyJump sonarqube
+          StrictHostKeyChecking no
+        EOF
+        chmod 600 ~/.ssh/config
+        
+        # Get Private IPs of FE VMSS instances
+        FE_IPS=$(az vmss nic list -g musa-project2-rg --vmss-name burger-vmss-fe-musa --query "[].ipConfigurations[0].privateIPAddress" -o tsv)
+        
+        for IP in $FE_IPS; do
+          echo "Deploying to $IP..."
+          scp frontend.zip $IP:/home/azureuser/
+          ssh $IP "sudo apt-get install -y unzip && unzip -o frontend.zip -d frontend_app && cd frontend_app && sudo npm install -g pm2 serve && sudo pm2 delete frontend || true && sudo pm2 serve dist 80 --spa --name frontend"
+        done
