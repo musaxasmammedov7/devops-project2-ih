@@ -1,328 +1,447 @@
-# Burger Builder Application
+# 🍔 Burger Builder — Secure 3-Tier Azure Deployment
 
-A full-stack web application for building and ordering custom burgers with a modern React frontend and Spring Boot backend API.
+A full-stack web application for building and ordering custom burgers, deployed on a production-grade, fully automated 3-tier Azure cloud infrastructure using Terraform, Ansible, and GitHub Actions CI/CD pipelines.
 
-## Project Structure
+**Live URL:** `http://51.142.251.112` (via Azure Application Gateway WAF v2)
+
+---
+
+## 📐 Architecture Overview
 
 ```
-capstone_project_ih/
-├── frontend/                 # React + TypeScript + Vite frontend
-│   ├── src/
-│   │   ├── components/      # React components
-│   │   ├── context/         # React Context providers
-│   │   ├── services/        # API service layer
-│   │   ├── types/           # TypeScript type definitions
-│   │   └── utils/           # Utility functions
-│   ├── public/              # Static assets
-│   ├── package.json         # Frontend dependencies
-│   ├── vite.config.ts       # Vite configuration
-│   ├── nginx.conf           # Nginx configuration for production
-│   └── README.md            # Frontend-specific documentation
-├── backend/                 # Spring Boot REST API
-│   ├── src/main/java/com/burgerbuilder/
-│   │   ├── controller/      # REST controllers
-│   │   ├── service/         # Business logic services
-│   │   ├── repository/      # Data access layer
-│   │   ├── entity/          # JPA entities
-│   │   ├── dto/             # Data transfer objects
-│   │   ├── exception/       # Custom exception handling
-│   │   └── config/          # Configuration classes
-│   ├── src/main/resources/
-│   │   ├── application.properties          # Default configuration
-│   │   ├── application-docker.properties   # Docker/PostgreSQL config
-│   │   ├── application-azure.properties    # Azure SQL config
-│   │   ├── schema.sql                      # Database schema
-│   │   └── data.sql                        # Initial data
-│   ├── pom.xml              # Maven dependencies and build config
-│   └── TESTING.md           # Backend testing documentation
-├── environment.env.example  # Environment variables template
-└── environment.env          # Environment variables (create from example)
+                        ┌─────────────────────────────────┐
+                        │        Internet (Users)          │
+                        └────────────────┬────────────────┘
+                                         │ HTTP :80
+                        ┌────────────────▼────────────────┐
+                        │   Application Gateway (WAF v2)   │
+                        │   OWASP 3.2 Rules / Prevention   │
+                        └──────────┬──────────────┬────────┘
+                                   │              │ /api/*
+                     ┌─────────────▼──┐    ┌──────▼──────────┐
+                     │  FE VMSS       │    │  BE VMSS         │
+                     │  React / pm2   │    │  Spring Boot     │
+                     │  :80           │    │  :8080           │
+                     │  snet-fe-musa  │    │  snet-be-musa    │
+                     └────────────────┘    └──────┬──────────┘
+                                                  │ Private Endpoint
+                                     ┌────────────▼──────────────┐
+                                     │   Azure SQL Database       │
+                                     │   (No public access)       │
+                                     │   snet-pep                 │
+                                     └───────────────────────────┘
+
+           ┌────────────────────────────────────────────┐
+           │  SonarQube VM (snet-ops)                   │
+           │  • Code quality scanning                   │
+           │  • SSH Jumpbox/Bastion for VMSS access     │
+           └────────────────────────────────────────────┘
 ```
 
-## Frontend Application
+### Key Security Design Principles
+- **Zero Public Exposure**: FE and BE VMSS have **no public IPs**
+- **Private Database**: SQL Server accessible only via Private Endpoint (`10.0.4.x`)
+- **WAF Protection**: All traffic filtered by OWASP 3.2 rules
+- **SSH via Jumpbox**: Only SonarQube VM accepts SSH from internet; VMSS only accepts SSH from OPS subnet
+- **NSG Rules**: Every subnet has strict inbound/outbound rules
 
-### Tech Stack
+---
 
-- **Framework**: React 19.1.1
-- **Language**: TypeScript 5.8.3
-- **Build Tool**: Vite 7.1.7
-- **Routing**: React Router DOM 7.9.3
-- **HTTP Client**: Axios 1.12.2
-- **Testing**: Vitest 1.0.4 + Testing Library
-- **Linting**: ESLint 9.36.0
-- **CSS**: Vanilla CSS with CSS modules
+## 📋 Prerequisites
 
-### Key Features
+### 1. Required Tools (Local Machine)
+| Tool | Version | Install |
+|------|---------|---------|
+| Azure CLI | ≥ 2.50 | [docs.microsoft.com/cli/azure/install](https://docs.microsoft.com/cli/azure/install-azure-cli) |
+| Terraform | ≥ 1.7.5 | [developer.hashicorp.com/terraform/install](https://developer.hashicorp.com/terraform/install) |
+| Ansible | ≥ 2.15 | `pip install ansible` |
+| Git | Any | [git-scm.com](https://git-scm.com) |
+| SSH | Any | Built-in on Mac/Linux |
 
-- Interactive burger builder with drag-and-drop ingredients
-- Shopping cart management with session persistence
-- Order creation and tracking
-- Order history viewing
-- Responsive design with modern UI/UX
-- Real-time API integration
-- Comprehensive testing coverage
-
-### Backend URL Configuration
-
-The frontend connects to the backend API through the following configuration:
-
-**Location**: `frontend/src/services/api.ts`
-
-```typescript
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
-```
-
-**Required Environment Variable**:
-- `VITE_API_BASE_URL`: The base URL for the backend API (defaults to `http://localhost:8080`)
-
-**Usage**:
-1. Create a `.env` file in the frontend directory
-2. Add: `VITE_API_BASE_URL=http://your-backend-url:8080`
-3. For production: `VITE_API_BASE_URL=https://your-production-api.com`
-
-### Frontend Compilation and Deployment
-
-#### Development Setup
+### 2. Azure Permissions
+Your Azure Service Principal must have the **Contributor** role on the subscription.
 
 ```bash
-cd frontend
-npm install
-npm run dev          # Start development server (http://localhost:5173)
-npm run test         # Run tests
-npm run test:ui      # Run tests with UI
-npm run test:coverage # Run tests with coverage
-npm run lint         # Run ESLint
+# Create Service Principal
+az ad sp create-for-rbac \
+  --name "burger-builder-sp" \
+  --role Contributor \
+  --scopes /subscriptions/<SUBSCRIPTION_ID> \
+  --sdk-auth
+```
+Save the output — you'll need `clientId`, `clientSecret`, `subscriptionId`, `tenantId`.
+
+### 3. Azure Quotas (Important!)
+Verify your quota for `standardDASv7Family` vCPUs in your chosen region:
+```bash
+az vm list-usage --location "UK South" -o table | grep -i "das"
+```
+> ⚠️ This project uses `Standard_D2ads_v7` VMs (2 vCPUs each × 3 VMs = **6 vCPUs minimum** required).  
+> If quota is insufficient, either request an increase or choose another region with free quota.
+
+### 4. SSH Key Generation
+Generate a **dedicated, passphrase-free** SSH key for this project:
+```bash
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/burger_key -N ""
+
+# View your public key (needed for GitHub Secrets)
+cat ~/.ssh/burger_key.pub
+
+# View your private key (needed for GitHub Secrets)
+cat ~/.ssh/burger_key
 ```
 
-#### Production Build
+### 5. GitHub Repository Secrets
+Navigate to your GitHub repo → **Settings → Secrets and variables → Actions** and create all secrets:
+
+| Secret Name | Description | Example |
+|---|---|---|
+| `AZURE_CLIENT_ID` | Service Principal App ID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
+| `AZURE_CLIENT_SECRET` | Service Principal Password | `your~secret~value` |
+| `AZURE_SUBSCRIPTION_ID` | Your Azure Subscription ID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
+| `AZURE_TENANT_ID` | Your Azure AD Tenant ID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
+| `SQL_ADMIN_USERNAME` | SQL Server admin login | `group2_sql` |
+| `SQL_ADMIN_PASSWORD` | SQL Server admin password (no `'` chars) | `BurgerApp2026!Secure` |
+| `VM_SSH_PUBLIC_KEY` | Public SSH key content | `ssh-rsa AAAA...` |
+| `VM_SSH_PRIVATE_KEY` | Private SSH key content | `-----BEGIN RSA PRIVATE KEY-----...` |
+| `SONAR_HOST_URL` | SonarQube URL (set after step 3) | `http://20.68.203.156:9000` |
+| `SONAR_TOKEN_FRONTEND` | SonarQube project token | `sqp_xxxxxxxxxxxx` |
+| `SONAR_TOKEN_BACKEND` | SonarQube project token | `sqp_xxxxxxxxxxxx` |
+
+---
+
+## 🏗️ Step 1: Provision Infrastructure (Terraform)
+
+Terraform creates the **entire Azure infrastructure** automatically — VNet, subnets, NSGs, Application Gateway, VMSS clusters, SQL Database, SonarQube VM, and monitoring.
+
+### Automatic via GitHub Actions (Recommended)
+Simply push any change to `infra/terraform/**` to the `main` branch, or trigger manually:
+1. Go to **Actions → Deploy Infrastructure (Terraform)**
+2. Click **Run workflow**
+
+The pipeline will:
+1. Create a remote Terraform state storage account in Azure
+2. Run `terraform init`, `plan`, and `apply`
+3. Output the SonarQube public IP
+
+### Manual Execution
+```bash
+cd infra/terraform
+
+# Initialize with remote state backend
+terraform init \
+  -backend-config="resource_group_name=tfstate-rg" \
+  -backend-config="storage_account_name=tfstatemusa2026" \
+  -backend-config="container_name=tfstate" \
+  -backend-config="key=prod.terraform.tfstate"
+
+# Preview changes
+terraform plan \
+  -var="sql_admin_username=group2_sql" \
+  -var="sql_admin_password=BurgerApp2026!Secure" \
+  -var="vm_ssh_public_key=$(cat ~/.ssh/burger_key.pub)"
+
+# Apply
+terraform apply -auto-approve \
+  -var="sql_admin_username=group2_sql" \
+  -var="sql_admin_password=BurgerApp2026!Secure" \
+  -var="vm_ssh_public_key=$(cat ~/.ssh/burger_key.pub)"
+```
+
+### Terraform Module Structure
+```
+infra/terraform/
+├── main.tf                  # Root: Resource Group, Public IP, module calls
+├── variables.tf             # Input variables
+├── outputs.tf               # Outputs (SonarQube IP, etc.)
+├── terraform.tfvars         # Default variable values (region, CIDR blocks)
+└── modules/
+    ├── networking/          # VNet, 5 subnets, 4 NSGs
+    ├── app_gateway/         # WAF v2 Application Gateway + WAF Policy
+    ├── compute/             # VMSS (FE + BE) with autoscaling
+    ├── database/            # Azure SQL Server + Private Endpoint + DNS Zone
+    ├── sonarqube_vm/        # SonarQube VM with public IP
+    └── monitoring/          # Log Analytics + Application Insights + Alerts
+```
+
+### Expected Resources Created
+| Resource | Name |
+|---|---|
+| Resource Group | `musa-project2-rg` |
+| Virtual Network | `burger-vnet` (10.0.0.0/16) |
+| Application Gateway | `burger-appgw` |
+| FE VMSS | `burger-vmss-fe-musa` |
+| BE VMSS | `burger-vmss-be-musa` |
+| SQL Server | `burger-sqlserver` |
+| SonarQube VM | `burger-sonar-vm` |
+
+---
+
+## ⚙️ Step 2: Configure Servers (Ansible)
+
+Ansible automatically installs Docker and runs the SonarQube container on the dedicated VM.  
+This step is **automatically triggered** at the end of the `infra.yml` GitHub Actions pipeline.
+
+### What Ansible Does
+1. Updates system packages
+2. Installs Docker and Docker Compose
+3. Pulls the official `sonarqube:lts-community` image
+4. Starts SonarQube container on port **9000**
+5. Configures required kernel parameters (`vm.max_map_count`)
+
+### Manual Execution
+```bash
+# Get SonarQube IP first
+SONAR_IP=$(az network public-ip show \
+  -g musa-project2-rg -n burger-sonar-pip \
+  --query ipAddress -o tsv)
+
+# Run playbook (uses your SSH private key)
+ansible-playbook \
+  -i "${SONAR_IP}," \
+  -u azureuser \
+  --private-key ~/.ssh/burger_key \
+  config/ansible/playbooks/sonarqube.yml
+```
+
+### Set Up SonarQube Projects (One-time Manual Step)
+After Ansible finishes, open `http://<SONAR_IP>:9000` in your browser:
+
+1. Login with `admin` / `admin` → Set a new password
+2. **Create Frontend Project**: 
+   - Name: `burger-frontend`, Key: `burger-frontend`
+   - Generate token → Save as `SONAR_TOKEN_FRONTEND` in GitHub Secrets
+3. **Create Backend Project**: 
+   - Name: `burger-backend`, Key: `burger-backend`
+   - Generate token → Save as `SONAR_TOKEN_BACKEND` in GitHub Secrets
+4. Save `http://<SONAR_IP>:9000` as `SONAR_HOST_URL` in GitHub Secrets
+
+---
+
+## 🚀 Step 3: Deploy Applications (GitHub Actions)
+
+### Frontend Pipeline (`frontend.yml`)
+**Triggers:** Push to `main` when files in `frontend/**` change, or manual dispatch.
+
+**Stages:**
+1. **Build & Test** — `npm ci`, `npm run test:coverage`, SonarQube scan, `npm run build`, zip artifact
+2. **Deploy** — SSH through SonarQube Jumpbox → scp zip to all FE VMSS instances → start with `pm2 serve`
 
 ```bash
-cd frontend
-npm run build        # Build for production
-npm run preview      # Preview production build locally
+# Trigger manually
+# GitHub → Actions → "Build and Deploy Frontend" → Run workflow
 ```
 
-The build process:
-1. **TypeScript Compilation**: `tsc -b` compiles TypeScript to JavaScript
-2. **Vite Build**: Bundles and optimizes assets
-3. **Output**: Creates `dist/` folder with production-ready files
+### Backend Pipeline (`backend.yml`)
+**Triggers:** Push to `main` when files in `backend/**` change, or manual dispatch.
 
-#### Deployment Options
-
-**Option 1: Static Hosting (Recommended)**
-- Build the application: `npm run build`
-- Deploy the `dist/` folder to any static hosting service:
-  - Vercel, Netlify, AWS S3, Azure Static Web Apps
-  - Set `VITE_API_BASE_URL` environment variable in hosting platform
-
-**Option 2: Docker with Nginx**
-- The project includes `nginx.conf` for containerized deployment
-- Nginx serves the built React app with optimizations:
-  - Gzip compression
-  - Static asset caching
-  - Security headers
-  - SPA routing support
-
-**Option 3: Traditional Web Server**
-- Upload built files to any web server (Apache, Nginx, IIS)
-- Configure server to serve `index.html` for all routes (SPA support)
-
-## Backend Application
-
-### Tech Stack
-
-- **Framework**: Spring Boot 3.2.0
-- **Language**: Java 21
-- **Build Tool**: Maven
-- **Database**: 
-  - PostgreSQL (Docker/Development)
-  - Azure SQL Database (Production)
-- **ORM**: Spring Data JPA + Hibernate
-- **Validation**: Spring Boot Validation
-- **Utilities**: Lombok
-- **Testing**: Spring Boot Test + H2 Database
-
-### Key Features
-
-- RESTful API for burger ingredients, cart, and orders
-- Session-based cart management
-- Database initialization with sample data
-- CORS configuration for frontend integration
-- Comprehensive error handling
-- Multi-environment configuration support
-
-### Environment Variables Required
-
-The backend requires the following environment variables (defined in `environment.env`):
-
-#### Database Configuration
-- `DB_HOST`: Database server hostname
-- `DB_PORT`: Database port (1433 for SQL Server, 5432 for PostgreSQL)
-- `DB_NAME`: Database name
-- `DB_USERNAME`: Database username
-- `DB_PASSWORD`: Database password
-- `DB_DRIVER`: JDBC driver class name
-
-#### Application Configuration
-- `SPRING_PROFILES_ACTIVE`: Active Spring profile
-  - `docker`: Uses PostgreSQL configuration
-  - `azure`: Uses Azure SQL configuration
-- `SERVER_PORT`: Server port (default: 8080)
-- `CORS_ALLOWED_ORIGINS`: Comma-separated list of allowed CORS origins
-
-#### Example Configuration
+**Stages:**
+1. **Build & Test** — `mvn clean verify`, SonarQube scan via Maven, upload JAR artifact
+2. **Deploy** — SSH through SonarQube Jumpbox → scp JAR to all BE VMSS instances → install Java 21 → start with `nohup java -jar`
 
 ```bash
-# For Docker/PostgreSQL Development
-SPRING_PROFILES_ACTIVE=docker
-DB_HOST=database
-DB_PORT=5432
-DB_NAME=burgerbuilder
-DB_USERNAME=postgres
-DB_PASSWORD=YourStrong!Passw0rd
-DB_DRIVER=org.postgresql.Driver
-
-# For Azure SQL Production
-SPRING_PROFILES_ACTIVE=azure
-DB_HOST=your-server.database.windows.net
-DB_PORT=1433
-DB_NAME=burgerbuilder
-DB_USERNAME=your-username
-DB_PASSWORD=your-password
-DB_DRIVER=com.microsoft.sqlserver.jdbc.SQLServerDriver
+# Trigger manually
+# GitHub → Actions → "Build and Deploy Backend" → Run workflow
 ```
 
-### Backend Compilation and Deployment
+### How SSH Deployment Works (ProxyJump)
+```
+GitHub Actions Runner (Internet)
+    │  SSH
+    ▼
+SonarQube VM (Public IP: 20.68.203.156)    ← Jumpbox / Bastion
+    │  SSH through private network
+    ▼
+FE/BE VMSS (Private IPs: 10.0.2.x / 10.0.3.x)
+```
 
-#### Development Setup
+The SSH config used in pipelines:
+```
+Host sonarqube
+  HostName <SONAR_PUBLIC_IP>
+  User azureuser
+  IdentityFile ~/.ssh/id_rsa
 
+Host 10.0.*
+  User azureuser
+  ProxyJump sonarqube
+  IdentityFile ~/.ssh/id_rsa
+```
+
+---
+
+## ✅ Step 4: Validate the Deployment
+
+### 1. Check Application Gateway Backend Health
 ```bash
-cd backend
-mvn clean install     # Download dependencies and compile
-mvn spring-boot:run   # Start development server
+az network application-gateway show-backend-health \
+  --name burger-appgw \
+  --resource-group musa-project2-rg \
+  --query "backendAddressPools[].backendHttpSettingsCollection[].servers[].[address,health]" \
+  -o table
+```
+Expected output:
+```
+Column1    Column2
+---------  ---------
+10.0.2.4   Healthy    ← Frontend VMSS
+10.0.3.5   Healthy    ← Backend VMSS
 ```
 
-#### Production Build
-
+### 2. Check Frontend Server (pm2)
 ```bash
-cd backend
-mvn clean package     # Build JAR file
+az vmss run-command invoke \
+  -g musa-project2-rg -n burger-vmss-fe-musa \
+  --command-id RunShellScript \
+  --scripts "sudo pm2 status && ss -tlnp | grep 80" \
+  --instance-id 0
 ```
 
-The build process:
-1. **Dependency Resolution**: Downloads all Maven dependencies
-2. **Compilation**: Compiles Java source code to bytecode
-3. **Testing**: Runs unit and integration tests
-4. **Packaging**: Creates executable JAR file in `target/` directory
-
-#### Deployment Options
-
-**Option 1: JAR File Execution**
+### 3. Check Backend Server (Java)
 ```bash
-java -jar target/burger-builder-backend-1.0.0.jar
+az vmss run-command invoke \
+  -g musa-project2-rg -n burger-vmss-be-musa \
+  --command-id RunShellScript \
+  --scripts "ss -tlnp | grep 8080 && echo 'Java IS running' || echo 'Java NOT running'" \
+  --instance-id 1
 ```
 
-**Option 2: Docker Deployment**
+### 4. Test the Application URLs
+
+| Endpoint | Expected Response |
+|---|---|
+| `http://51.142.251.112` | `200 OK` — Burger Builder UI |
+| `http://51.142.251.112/api/ingredients` | `200 OK` — JSON array of ingredients |
+| `http://51.142.251.112/api/orders/history` | `200 OK` — JSON array of orders |
+
+### 5. Sample curl / API Tests
+
+**Get all ingredients:**
 ```bash
-# Build Docker image
-docker build -t burger-builder-backend .
-
-# Run with environment variables
-docker run -p 8080:8080 --env-file environment.env burger-builder-backend
+curl -s http://51.142.251.112/api/ingredients | python3 -m json.tool
 ```
 
-**Option 3: Cloud Platform Deployment**
-- **Azure App Service**: Deploy JAR file directly
-- **AWS Elastic Beanstalk**: Upload JAR file
-- **Google Cloud Run**: Containerized deployment
-- **Heroku**: Git-based deployment
+**Get ingredients by category:**
+```bash
+curl -s http://51.142.251.112/api/ingredients/BUNS | python3 -m json.tool
+curl -s http://51.142.251.112/api/ingredients/PATTIES | python3 -m json.tool
+```
 
-#### Environment-Specific Deployment
+**Add item to cart:**
+```bash
+curl -X POST http://51.142.251.112/api/cart/items \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "test-session-123",
+    "ingredientId": 1,
+    "quantity": 1
+  }'
+```
 
-**Development (PostgreSQL)**:
-1. Set `SPRING_PROFILES_ACTIVE=docker`
-2. Configure PostgreSQL connection variables
-3. Run with Docker Compose or local PostgreSQL
+**Get cart:**
+```bash
+curl -s http://51.142.251.112/api/cart/test-session-123 | python3 -m json.tool
+```
 
-**Production (Azure SQL)**:
-1. Set `SPRING_PROFILES_ACTIVE=azure`
-2. Configure Azure SQL connection variables
-3. Deploy to cloud platform with proper security configuration
+**Create an order:**
+```bash
+curl -X POST http://51.142.251.112/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "test-session-123",
+    "customerName": "John Doe",
+    "customerEmail": "john@example.com",
+    "customerPhone": "+1234567890",
+    "cartItemIds": [1]
+  }'
+```
 
-## Getting Started
+**Get order history:**
+```bash
+curl -s "http://51.142.251.112/api/orders/history?email=john@example.com" | python3 -m json.tool
+```
 
-1. **Clone the repository**
-2. **Set up environment variables**:
-   ```bash
-   cp environment.env.example environment.env
-   # Edit environment.env with your database credentials
-   ```
-3. **Start the backend**:
-   ```bash
-   cd backend
-   mvn spring-boot:run
-   ```
-4. **Start the frontend**:
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
-5. **Access the application**: http://localhost:5173
+### 6. Postman Collection
+Import the following base URL into Postman:  
+`http://51.142.251.112`
 
-## API Endpoints
+Key requests to test:
+- `GET /api/ingredients` — List all ingredients
+- `POST /api/cart/items` — Add to cart (Body: JSON with `sessionId`, `ingredientId`, `quantity`)
+- `POST /api/orders` — Place order
+- `GET /api/orders/history` — View all orders
 
-- `GET /api/ingredients` - Get all ingredients
-- `GET /api/ingredients/{category}` - Get ingredients by category
-- `POST /api/cart/items` - Add item to cart
-- `GET /api/cart/{sessionId}` - Get cart items
-- `DELETE /api/cart/items/{itemId}` - Remove cart item
-- `POST /api/orders` - Create order
-- `GET /api/orders/{orderId}` - Get order details
-- `GET /api/orders/history` - Get order history
+---
 
-## End-to-End Automation (Project 2)
+## 🔧 Troubleshooting
 
-This project has been fully automated using Terraform, Ansible, and GitHub Actions to deploy a secure, scalable 3-Tier architecture on Azure.
+### Bad Gateway (502)
+The Application Gateway cannot reach a backend server.
+```bash
+# Check backend health
+az network application-gateway show-backend-health \
+  --name burger-appgw --resource-group musa-project2-rg
 
-### Architecture Features
-- **Application Gateway (WAF v2)** serves as the single public entry point.
-- **Frontend & Backend** run on Azure App Services with **VNet Integration** and **Private Endpoints**.
-- **Azure SQL Database** has public access disabled and is only accessible via Private Endpoint.
-- **SonarQube** is hosted on a dedicated VM, provisioned with Terraform and configured via Ansible.
-- **Monitoring** is configured with Log Analytics, Application Insights, and automatic Alerts.
+# Check if Java is running on BE VMSS
+az vmss run-command invoke -g musa-project2-rg -n burger-vmss-be-musa \
+  --command-id RunShellScript \
+  --scripts "ss -tlnp | grep 8080" --instance-id 1
+```
 
-### Documentation
-- [Runbook](docs/runbook.md)
-- [Architecture Diagram](docs/architecture-diagram.md)
+### "Failed to load ingredients" (Frontend Error)
+The frontend cannot reach the backend API. Verify:
+1. Java is running on the BE VMSS (see above)
+2. App Gateway backend pool is Healthy
+3. Check backend logs: `cat /home/azureuser/app.log`
 
-### Deployment Steps
+### SSH Connection Issues
+```bash
+# Test connection to SonarQube VM
+ssh -i ~/.ssh/burger_key -o StrictHostKeyChecking=no azureuser@<SONAR_IP>
 
-1. **Prerequisites**:
-   Ensure you have an Azure Subscription and have created a Service Principal with Contributor rights.
-   Add the following secrets to your GitHub repository:
-   - `AZURE_CLIENT_ID`
-   - `AZURE_CLIENT_SECRET`
-   - `AZURE_SUBSCRIPTION_ID`
-   - `AZURE_TENANT_ID`
-   - `SQL_ADMIN_USERNAME`
-   - `SQL_ADMIN_PASSWORD`
-   - `VM_SSH_PUBLIC_KEY`
-   - `SONAR_HOST_URL` (e.g., `http://<sonarqube-ip>:9000`)
-   - `SONAR_TOKEN_FRONTEND`
-   - `SONAR_TOKEN_BACKEND`
+# Test ProxyJump to FE VMSS
+ssh -i ~/.ssh/burger_key -J azureuser@<SONAR_IP> azureuser@10.0.2.4
+```
 
-2. **Infrastructure**:
-   Trigger the `Deploy Infrastructure (Terraform)` GitHub Action workflow. It automatically creates the remote state storage and applies the Terraform configuration in `infra/terraform`.
+### Terraform "Resource Already Exists"
+This happens when state is out of sync. Clean up and re-run:
+```bash
+az group delete --name musa-project2-rg --yes --no-wait
+```
+Wait ~5 minutes, then re-trigger the Terraform pipeline.
 
-3. **SonarQube Setup (Ansible)**:
-   After Terraform finishes, note the SonarQube IP from the outputs.
-   Update `config/ansible/inventories/prod/hosts` with the IP.
-   Run `ansible-playbook -i config/ansible/inventories/prod/hosts config/ansible/playbooks/sonarqube.yml`.
+---
 
-4. **Applications**:
-   Once SonarQube is running and projects/tokens are created, trigger the `Build and Deploy Frontend` and `Build and Deploy Backend` GitHub Actions to build, scan, and deploy the apps.
+## 📁 Project Structure
 
-## License
+```
+.
+├── .github/workflows/
+│   ├── infra.yml         # Terraform: provision Azure infrastructure + run Ansible
+│   ├── frontend.yml      # Build, test, scan, deploy React app to FE VMSS
+│   └── backend.yml       # Build, test, scan, deploy Spring Boot to BE VMSS
+├── frontend/             # React + TypeScript + Vite application
+│   └── src/services/api.ts  # API client (uses relative URL for App Gateway routing)
+├── backend/              # Spring Boot REST API (Java 21, Maven)
+│   └── src/main/resources/
+│       ├── schema.sql    # Database schema (auto-created by Hibernate)
+│       └── data.sql      # Seed data for ingredients
+├── config/ansible/
+│   └── playbooks/sonarqube.yml  # Installs Docker & starts SonarQube
+└── infra/terraform/
+    ├── main.tf
+    ├── terraform.tfvars  # Region: UK South, CIDR blocks
+    └── modules/
+        ├── networking/   # VNet + 5 subnets + 4 NSGs
+        ├── app_gateway/  # WAF v2 + WAF Policy (OWASP 3.2)
+        ├── compute/      # VMSS (FE + BE) + autoscaling
+        ├── database/     # Azure SQL + Private Endpoint
+        ├── sonarqube_vm/ # SonarQube VM (Gen2 Ubuntu 22.04)
+        └── monitoring/   # Log Analytics + App Insights + Alerts
+```
 
-This project is part of a capstone project for educational purposes.
+---
+
+## 📜 License
+
+This project is part of a capstone project (IH DevOps Bootcamp) for educational purposes.
