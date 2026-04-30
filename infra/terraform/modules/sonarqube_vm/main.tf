@@ -23,7 +23,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
   name                = "${var.prefix}-sonar-vm"
   resource_group_name = var.resource_group_name
   location            = var.location
-  size                = "tandard_D2ads_v7"
+  size                = "standard_D2ads_v7"
   admin_username      = var.vm_admin_username
   network_interface_ids = [
     azurerm_network_interface.nic.id,
