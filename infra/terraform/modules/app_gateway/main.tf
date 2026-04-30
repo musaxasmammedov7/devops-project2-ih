@@ -75,8 +75,8 @@ resource "azurerm_application_gateway" "appgw" {
 
   backend_http_settings {
     name                                = local.http_setting_name_fe
-    cookie_based_affinity               = "Disabled"
-    port                                = 443
+    cookie_based_affinity               = "Disabled" # Отключаем привязку сессии
+    port                                = 443        # Идем к Web App по HTTPS порту 443
     protocol                            = "Https"
     request_timeout                     = 60
     pick_host_name_from_backend_address = true

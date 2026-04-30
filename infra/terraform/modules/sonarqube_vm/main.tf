@@ -23,7 +23,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
   name                = "${var.prefix}-sonar-vm"
   resource_group_name = var.resource_group_name
   location            = var.location
-  size                = "Standard_B2s" # 4GB RAM is recommended for SonarQube
+  size                = "Standard_D2s_v3" 
   admin_username      = var.vm_admin_username
   network_interface_ids = [
     azurerm_network_interface.nic.id,

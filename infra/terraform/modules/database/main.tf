@@ -21,6 +21,7 @@ resource "azurerm_private_dns_zone" "sql_dns_zone" {
   resource_group_name = var.resource_group_name
 }
 
+# Привязываем приватную DNS зону к нашей виртуальной сети
 resource "azurerm_private_dns_zone_virtual_network_link" "vnet_link" {
   name                  = "${var.prefix}-sql-vnet-link"
   resource_group_name   = var.resource_group_name
@@ -35,6 +36,7 @@ resource "azurerm_private_endpoint" "sql_pe" {
   resource_group_name = var.resource_group_name
   subnet_id           = var.pep_subnet_id
 
+  # Настраиваем приватное подключение к SQL серверу
   private_service_connection {
     name                           = "${var.prefix}-sql-privatelink"
     private_connection_resource_id = azurerm_mssql_server.sql.id
@@ -42,10 +44,12 @@ resource "azurerm_private_endpoint" "sql_pe" {
     subresource_names              = ["sqlServer"]
   }
 
+  # Добавляем запись в DNS зону, чтобы по имени сервера выдавался приватный IP
   private_dns_zone_group {
     name                 = "sql-dns-zone-group"
     private_dns_zone_ids = [azurerm_private_dns_zone.sql_dns_zone.id]
   }
 
+  # Ждем создания связи DNS с сетью перед созданием точки доступа
   depends_on = [azurerm_private_dns_zone_virtual_network_link.vnet_link]
 }

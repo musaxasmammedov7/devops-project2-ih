@@ -1,3 +1,6 @@
+# Создаем App Service Plan (план обслуживания) - это своего рода "серверная ферма",
+# которая выделяет вычислительные ресурсы (CPU, RAM) и ОС (в нашем случае Linux) 
+# для запуска наших веб-приложений.
 resource "azurerm_service_plan" "asp" {
   name                = "${var.prefix}-asp"
   resource_group_name = var.resource_group_name

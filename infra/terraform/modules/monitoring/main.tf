@@ -6,6 +6,7 @@ resource "azurerm_log_analytics_workspace" "law" {
   retention_in_days   = 30
 }
 
+# Создаем Application Insights — сервис для мониторинга производительности самого приложения (APM)
 resource "azurerm_application_insights" "appinsights" {
   name                = "${var.prefix}-appinsights"
   location            = var.location
@@ -14,7 +15,7 @@ resource "azurerm_application_insights" "appinsights" {
   application_type    = "web"
 }
 
-# Action Group
+# Создаем Action Group — это группа действий, которая срабатывает при тревоге (Alert)
 resource "azurerm_monitor_action_group" "ag" {
   name                = "${var.prefix}-actiongroup"
   resource_group_name = var.resource_group_name
@@ -40,6 +41,7 @@ resource "azurerm_monitor_metric_alert" "appgw_health" {
     threshold        = 0
   }
 
+  # Что делать при тревоге (вызвать Action Group)
   action {
     action_group_id = azurerm_monitor_action_group.ag.id
   }
