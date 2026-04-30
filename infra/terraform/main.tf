@@ -12,16 +12,16 @@ resource "azurerm_public_ip" "appgw_pip" {
 }
 
 module "networking" {
-  source                       = "./modules/networking"
-  prefix                       = var.prefix
-  location                     = azurerm_resource_group.rg.location
-  resource_group_name          = azurerm_resource_group.rg.name
-  vnet_address_space           = var.vnet_address_space
-  appgw_subnet_prefix          = var.appgw_subnet_prefix
-  fe_subnet_prefix             = var.fe_subnet_prefix
-  be_subnet_prefix             = var.be_subnet_prefix
-  pep_subnet_prefix            = var.pep_subnet_prefix
-  ops_subnet_prefix            = var.ops_subnet_prefix
+  source              = "./modules/networking"
+  prefix              = var.prefix
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  vnet_address_space  = var.vnet_address_space
+  appgw_subnet_prefix = var.appgw_subnet_prefix
+  fe_subnet_prefix    = var.fe_subnet_prefix
+  be_subnet_prefix    = var.be_subnet_prefix
+  pep_subnet_prefix   = var.pep_subnet_prefix
+  ops_subnet_prefix   = var.ops_subnet_prefix
 }
 
 module "database" {
