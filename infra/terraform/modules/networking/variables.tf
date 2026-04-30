@@ -18,11 +18,11 @@ variable "appgw_subnet_prefix" {
   type = string
 }
 
-variable "fe_integration_subnet_prefix" {
+variable "fe_subnet_prefix" {
   type = string
 }
 
-variable "be_integration_subnet_prefix" {
+variable "be_subnet_prefix" {
   type = string
 }
 

@@ -19,16 +19,16 @@ variable "pep_subnet_id" {
 }
 
 variable "sql_admin_username" {
-  type = string
+  type      = string
   sensitive = true
 }
 
 variable "sql_admin_password" {
-  type = string
+  type      = string
   sensitive = true
 }
 
 variable "db_name" {
-  type = string
+  type    = string
   default = "burgerbuilder"
 }

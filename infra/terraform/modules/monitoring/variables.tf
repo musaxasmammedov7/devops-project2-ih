@@ -14,7 +14,11 @@ variable "appgw_id" {
   type = string
 }
 
-variable "app_service_plan_id" {
+variable "vmss_fe_id" {
+  type = string
+}
+
+variable "vmss_be_id" {
   type = string
 }
 

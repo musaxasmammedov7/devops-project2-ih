@@ -12,34 +12,18 @@ resource "azurerm_subnet" "appgw" {
   address_prefixes     = [var.appgw_subnet_prefix]
 }
 
-resource "azurerm_subnet" "fe_integration" {
-  name                 = "snet-fe-integration"
+resource "azurerm_subnet" "fe" {
+  name                 = "snet-fe-musa"
   resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.vnet.name
-  address_prefixes     = [var.fe_integration_subnet_prefix]
-  
-  delegation {
-    name = "delegation"
-    service_delegation {
-      name    = "Microsoft.Web/serverFarms"
-      actions = ["Microsoft.Network/virtualNetworks/subnets/action"]
-    }
-  }
+  address_prefixes     = [var.fe_subnet_prefix]
 }
 
-resource "azurerm_subnet" "be_integration" {
-  name                 = "snet-be-integration"
+resource "azurerm_subnet" "be" {
+  name                 = "snet-be-musa"
   resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.vnet.name
-  address_prefixes     = [var.be_integration_subnet_prefix]
-
-  delegation {
-    name = "delegation"
-    service_delegation {
-      name    = "Microsoft.Web/serverFarms"
-      actions = ["Microsoft.Network/virtualNetworks/subnets/action"]
-    }
-  }
+  address_prefixes     = [var.be_subnet_prefix]
 }
 
 resource "azurerm_subnet" "pep" {
@@ -74,7 +58,7 @@ resource "azurerm_network_security_group" "appgw" {
     source_address_prefix      = "GatewayManager"
     destination_address_prefix = "*"
   }
-  
+
   security_rule {
     name                       = "Allow-HTTP-HTTPS"
     priority                   = 110
@@ -128,5 +112,72 @@ resource "azurerm_subnet_network_security_group_association" "ops" {
   network_security_group_id = azurerm_network_security_group.ops.id
 }
 
-# The Private Endpoints subnet and App Service Integration subnets usually don't need complex NSGs 
-# since access is heavily restricted by AppGW and Private Endpoints policies natively.
+resource "azurerm_network_security_group" "fe" {
+  name                = "${var.prefix}-nsg-fe-musa"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+
+  security_rule {
+    name                       = "Allow-AppGW"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["80", "443", "3000", "5173"] # Common frontend ports
+    source_address_prefix      = var.appgw_subnet_prefix
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "Allow-SSH-Ops"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = var.ops_subnet_prefix
+    destination_address_prefix = "*"
+  }
+}
+
+resource "azurerm_subnet_network_security_group_association" "fe" {
+  subnet_id                 = azurerm_subnet.fe.id
+  network_security_group_id = azurerm_network_security_group.fe.id
+}
+
+resource "azurerm_network_security_group" "be" {
+  name                = "${var.prefix}-nsg-be-musa"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+
+  security_rule {
+    name                       = "Allow-AppGW"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["80", "443", "8080"] # Common backend ports
+    source_address_prefix      = var.appgw_subnet_prefix
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "Allow-SSH-Ops"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = var.ops_subnet_prefix
+    destination_address_prefix = "*"
+  }
+}
+
+resource "azurerm_subnet_network_security_group_association" "be" {
+  subnet_id                 = azurerm_subnet.be.id
+  network_security_group_id = azurerm_network_security_group.be.id
+}

@@ -47,18 +47,40 @@ resource "azurerm_monitor_metric_alert" "appgw_health" {
   }
 }
 
-# 2. App Service CPU Alert
-resource "azurerm_monitor_metric_alert" "app_cpu" {
-  name                = "${var.prefix}-alert-app-cpu"
+# 2. VMSS FE CPU Alert
+resource "azurerm_monitor_metric_alert" "vmss_fe_cpu" {
+  name                = "${var.prefix}-alert-vmss-fe-cpu-musa"
   resource_group_name = var.resource_group_name
-  scopes              = [var.app_service_plan_id]
+  scopes              = [var.vmss_fe_id]
   description         = "Action will be triggered when CPU Percentage is greater than 70%"
   severity            = 2
   window_size         = "PT5M"
 
   criteria {
-    metric_namespace = "Microsoft.Web/serverfarms"
-    metric_name      = "CpuPercentage"
+    metric_namespace = "Microsoft.Compute/virtualMachineScaleSets"
+    metric_name      = "Percentage CPU"
+    aggregation      = "Average"
+    operator         = "GreaterThan"
+    threshold        = 70
+  }
+
+  action {
+    action_group_id = azurerm_monitor_action_group.ag.id
+  }
+}
+
+# 3. VMSS BE CPU Alert
+resource "azurerm_monitor_metric_alert" "vmss_be_cpu" {
+  name                = "${var.prefix}-alert-vmss-be-cpu-musa"
+  resource_group_name = var.resource_group_name
+  scopes              = [var.vmss_be_id]
+  description         = "Action will be triggered when CPU Percentage is greater than 70%"
+  severity            = 2
+  window_size         = "PT5M"
+
+  criteria {
+    metric_namespace = "Microsoft.Compute/virtualMachineScaleSets"
+    metric_name      = "Percentage CPU"
     aggregation      = "Average"
     operator         = "GreaterThan"
     threshold        = 70

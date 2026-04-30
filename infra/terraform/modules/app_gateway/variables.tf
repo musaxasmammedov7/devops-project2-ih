@@ -18,10 +18,3 @@ variable "appgw_public_ip_id" {
   type = string
 }
 
-variable "fe_app_fqdn" {
-  type = string
-}
-
-variable "be_app_fqdn" {
-  type = string
-}

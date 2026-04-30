@@ -1,14 +1,14 @@
 
 locals {
-  backend_address_pool_name_fe      = "${var.prefix}-beap-fe"
-  backend_address_pool_name_be      = "${var.prefix}-beap-be"
-  frontend_port_name                = "${var.prefix}-feport"
-  frontend_ip_configuration_name    = "${var.prefix}-feip"
-  http_setting_name_fe              = "${var.prefix}-be-htst-fe"
-  http_setting_name_be              = "${var.prefix}-be-htst-be"
-  listener_name                     = "${var.prefix}-httplstn"
-  request_routing_rule_name         = "${var.prefix}-rqrt"
-  url_path_map_name                 = "${var.prefix}-urlpathmap"
+  backend_address_pool_name_fe   = "${var.prefix}-beap-fe"
+  backend_address_pool_name_be   = "${var.prefix}-beap-be"
+  frontend_port_name             = "${var.prefix}-feport"
+  frontend_ip_configuration_name = "${var.prefix}-feip"
+  http_setting_name_fe           = "${var.prefix}-be-htst-fe"
+  http_setting_name_be           = "${var.prefix}-be-htst-be"
+  listener_name                  = "${var.prefix}-httplstn"
+  request_routing_rule_name      = "${var.prefix}-rqrt"
+  url_path_map_name              = "${var.prefix}-urlpathmap"
 }
 
 resource "azurerm_application_gateway" "appgw" {
@@ -38,23 +38,21 @@ resource "azurerm_application_gateway" "appgw" {
   }
 
   backend_address_pool {
-    name  = local.backend_address_pool_name_fe
-    fqdns = [var.fe_app_fqdn]
+    name = local.backend_address_pool_name_fe
   }
 
   backend_address_pool {
-    name  = local.backend_address_pool_name_be
-    fqdns = [var.be_app_fqdn]
+    name = local.backend_address_pool_name_be
   }
 
   probe {
     name                                      = "probe-fe"
-    protocol                                  = "Https"
+    protocol                                  = "Http"
     path                                      = "/"
     interval                                  = 30
     timeout                                   = 30
     unhealthy_threshold                       = 3
-    pick_host_name_from_backend_http_settings = true
+    pick_host_name_from_backend_http_settings = false
     match {
       status_code = ["200-399", "401", "403"]
     }
@@ -62,12 +60,12 @@ resource "azurerm_application_gateway" "appgw" {
 
   probe {
     name                                      = "probe-be"
-    protocol                                  = "Https"
+    protocol                                  = "Http"
     path                                      = "/api/ingredients" # Assuming this is a health check endpoint or valid api path
     interval                                  = 30
     timeout                                   = 30
     unhealthy_threshold                       = 3
-    pick_host_name_from_backend_http_settings = true
+    pick_host_name_from_backend_http_settings = false
     match {
       status_code = ["200-399", "401", "403", "404"]
     }
@@ -76,20 +74,20 @@ resource "azurerm_application_gateway" "appgw" {
   backend_http_settings {
     name                                = local.http_setting_name_fe
     cookie_based_affinity               = "Disabled" # Отключаем привязку сессии
-    port                                = 443        # Идем к Web App по HTTPS порту 443
-    protocol                            = "Https"
+    port                                = 80         # Идем к FE VMSS по HTTP порту 80
+    protocol                            = "Http"
     request_timeout                     = 60
-    pick_host_name_from_backend_address = true
+    pick_host_name_from_backend_address = false
     probe_name                          = "probe-fe"
   }
 
   backend_http_settings {
     name                                = local.http_setting_name_be
     cookie_based_affinity               = "Disabled"
-    port                                = 443
-    protocol                            = "Https"
+    port                                = 8080 # Идем к BE VMSS по HTTP порту 8080
+    protocol                            = "Http"
     request_timeout                     = 60
-    pick_host_name_from_backend_address = true
+    pick_host_name_from_backend_address = false
     probe_name                          = "probe-be"
   }
 
@@ -114,11 +112,11 @@ resource "azurerm_application_gateway" "appgw" {
   }
 
   request_routing_rule {
-    name                       = local.request_routing_rule_name
-    rule_type                  = "PathBasedRouting"
-    http_listener_name         = local.listener_name
-    url_path_map_name          = local.url_path_map_name
-    priority                   = 100
+    name               = local.request_routing_rule_name
+    rule_type          = "PathBasedRouting"
+    http_listener_name = local.listener_name
+    url_path_map_name  = local.url_path_map_name
+    priority           = 100
   }
 
   waf_configuration {

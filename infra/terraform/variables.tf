@@ -1,7 +1,7 @@
 variable "prefix" {
   description = "Prefix for all resources" # Описание переменной
   type        = string                     # Тип переменной - строка
-  default     = "burger"                   # Значение по умолчанию
+  default     = "musa"
 }
 
 variable "location" {
@@ -22,13 +22,13 @@ variable "appgw_subnet_prefix" {
 }
 
 # Frontend
-variable "fe_integration_subnet_prefix" {
+variable "fe_subnet_prefix" {
   type    = string
   default = "10.0.2.0/24"
 }
 
 # Backend
-variable "be_integration_subnet_prefix" {
+variable "be_subnet_prefix" {
   type    = string
   default = "10.0.3.0/24"
 }
@@ -56,7 +56,7 @@ variable "sql_admin_username" {
 variable "sql_admin_password" {
   description = "Admin password for SQL server"
   type        = string
-  sensitive   = true    # confidential
+  sensitive   = true # confidential
 }
 
 

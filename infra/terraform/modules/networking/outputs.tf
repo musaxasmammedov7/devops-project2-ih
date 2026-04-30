@@ -10,12 +10,12 @@ output "appgw_subnet_id" {
   value = azurerm_subnet.appgw.id
 }
 
-output "fe_integration_subnet_id" {
-  value = azurerm_subnet.fe_integration.id
+output "fe_subnet_id" {
+  value = azurerm_subnet.fe.id
 }
 
-output "be_integration_subnet_id" {
-  value = azurerm_subnet.be_integration.id
+output "be_subnet_id" {
+  value = azurerm_subnet.be.id
 }
 
 output "pep_subnet_id" {
