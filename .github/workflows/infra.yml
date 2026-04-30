@@ -74,16 +74,17 @@ jobs:
         echo "SONAR_IP=$SONAR_IP" >> $GITHUB_ENV
         echo "Extracted IP: $SONAR_IP"
 
+    - name: Setup SSH
+      if: github.ref == 'refs/heads/main'
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+
     - name: Run Ansible Playbook (Install SonarQube)
       if: github.ref == 'refs/heads/main'
       env:
         ANSIBLE_HOST_KEY_CHECKING: "False"
-        SSH_PRIVATE_KEY: ${{ secrets.VM_SSH_PRIVATE_KEY }}
       run: |
-        # Setup SSH key for Ansible
-        mkdir -p ~/.ssh
-        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
         
         # Go to ansible directory
         cd ../../config/ansible
