@@ -4,9 +4,15 @@ output "appgw_id" {
 }
 
 output "backend_address_pool_fe_id" {
-  value = tolist(azurerm_application_gateway.appgw.backend_address_pool)[0].id
+  value = one(
+    [for pool in azurerm_application_gateway.appgw.backend_address_pool :
+    pool.id if pool.name == local.backend_address_pool_name_fe]
+  )
 }
 
 output "backend_address_pool_be_id" {
-  value = tolist(azurerm_application_gateway.appgw.backend_address_pool)[1].id
+  value = one(
+    [for pool in azurerm_application_gateway.appgw.backend_address_pool :
+    pool.id if pool.name == local.backend_address_pool_name_be]
+  )
 }
