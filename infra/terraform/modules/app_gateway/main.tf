@@ -52,7 +52,7 @@ resource "azurerm_application_gateway" "appgw" {
     interval                                  = 30
     timeout                                   = 30
     unhealthy_threshold                       = 3
-    pick_host_name_from_backend_http_settings = false
+    pick_host_name_from_backend_http_settings = true
     match {
       status_code = ["200-399", "401", "403"]
     }
@@ -65,7 +65,7 @@ resource "azurerm_application_gateway" "appgw" {
     interval                                  = 30
     timeout                                   = 30
     unhealthy_threshold                       = 3
-    pick_host_name_from_backend_http_settings = false
+    pick_host_name_from_backend_http_settings = true
     match {
       status_code = ["200-399", "401", "403", "404"]
     }
