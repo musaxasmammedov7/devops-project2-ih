@@ -55,7 +55,7 @@ module "vmss_fe" {
   subnet_id              = module.networking.fe_subnet_id
   appgw_backend_pool_ids = [module.app_gateway.backend_address_pool_fe_id]
   ssh_public_key         = var.vm_ssh_public_key
-  vm_size                = "Standard_D2as_v5"
+  vm_size                = "D2ads_v7"
 
   # Minimal cloud-init to install node/npm for Vite frontend
   custom_data = base64encode(<<-EOF
