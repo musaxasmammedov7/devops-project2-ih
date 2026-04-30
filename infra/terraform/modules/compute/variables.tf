@@ -27,7 +27,7 @@ variable "appgw_backend_pool_ids" {
 variable "vm_size" {
   type        = string
   description = "Size of the VMs"
-  default     = "Standard_B2s"
+  default     = "Standard_D2s_v3"
 }
 
 variable "admin_username" {
