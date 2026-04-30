@@ -77,7 +77,7 @@ resource "azurerm_application_gateway" "appgw" {
     port                                = 80         # Идем к FE VMSS по HTTP порту 80
     protocol                            = "Http"
     request_timeout                     = 60
-    pick_host_name_from_backend_address = false
+    pick_host_name_from_backend_address = true
     probe_name                          = "probe-fe"
   }
 
@@ -87,7 +87,7 @@ resource "azurerm_application_gateway" "appgw" {
     port                                = 8080 # Идем к BE VMSS по HTTP порту 8080
     protocol                            = "Http"
     request_timeout                     = 60
-    pick_host_name_from_backend_address = false
+    pick_host_name_from_backend_address = true
     probe_name                          = "probe-be"
   }
 
