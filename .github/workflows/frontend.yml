@@ -115,5 +115,5 @@ jobs:
         for IP in $FE_IPS; do
           echo "Deploying to $IP..."
           scp frontend.zip $IP:/home/azureuser/
-          ssh $IP "sudo apt-get install -y unzip && unzip -o frontend.zip -d frontend_app && cd frontend_app && sudo npm install -g pm2 serve && sudo pm2 delete frontend || true && sudo pm2 serve dist 80 --spa --name frontend"
+          ssh $IP "sudo apt-get install -y unzip && unzip -o frontend.zip -d frontend_app && cd frontend_app && sudo npm install -g pm2 serve && sudo pm2 delete frontend || true && sudo pm2 serve . 80 --spa --name frontend"
         done
