@@ -1,0 +1,4 @@
+[sonarqube]
+# IPs will be dynamically injected or added here by GitHub Actions after Terraform finishes.
+# You can use the terraform output to populate this: terraform output -raw sonarqube_url
+# Example: 20.123.45.67

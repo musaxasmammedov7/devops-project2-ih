@@ -281,6 +281,48 @@ docker run -p 8080:8080 --env-file environment.env burger-builder-backend
 - `GET /api/orders/{orderId}` - Get order details
 - `GET /api/orders/history` - Get order history
 
+## End-to-End Automation (Project 2)
+
+This project has been fully automated using Terraform, Ansible, and GitHub Actions to deploy a secure, scalable 3-Tier architecture on Azure.
+
+### Architecture Features
+- **Application Gateway (WAF v2)** serves as the single public entry point.
+- **Frontend & Backend** run on Azure App Services with **VNet Integration** and **Private Endpoints**.
+- **Azure SQL Database** has public access disabled and is only accessible via Private Endpoint.
+- **SonarQube** is hosted on a dedicated VM, provisioned with Terraform and configured via Ansible.
+- **Monitoring** is configured with Log Analytics, Application Insights, and automatic Alerts.
+
+### Documentation
+- [Runbook](docs/runbook.md)
+- [Architecture Diagram](docs/architecture-diagram.md)
+
+### Deployment Steps
+
+1. **Prerequisites**:
+   Ensure you have an Azure Subscription and have created a Service Principal with Contributor rights.
+   Add the following secrets to your GitHub repository:
+   - `AZURE_CLIENT_ID`
+   - `AZURE_CLIENT_SECRET`
+   - `AZURE_SUBSCRIPTION_ID`
+   - `AZURE_TENANT_ID`
+   - `SQL_ADMIN_USERNAME`
+   - `SQL_ADMIN_PASSWORD`
+   - `VM_SSH_PUBLIC_KEY`
+   - `SONAR_HOST_URL` (e.g., `http://<sonarqube-ip>:9000`)
+   - `SONAR_TOKEN_FRONTEND`
+   - `SONAR_TOKEN_BACKEND`
+
+2. **Infrastructure**:
+   Trigger the `Deploy Infrastructure (Terraform)` GitHub Action workflow. It automatically creates the remote state storage and applies the Terraform configuration in `infra/terraform`.
+
+3. **SonarQube Setup (Ansible)**:
+   After Terraform finishes, note the SonarQube IP from the outputs.
+   Update `config/ansible/inventories/prod/hosts` with the IP.
+   Run `ansible-playbook -i config/ansible/inventories/prod/hosts config/ansible/playbooks/sonarqube.yml`.
+
+4. **Applications**:
+   Once SonarQube is running and projects/tokens are created, trigger the `Build and Deploy Frontend` and `Build and Deploy Backend` GitHub Actions to build, scan, and deploy the apps.
+
 ## License
 
 This project is part of a capstone project for educational purposes.

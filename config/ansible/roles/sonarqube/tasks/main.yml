@@ -1,0 +1,75 @@
+---
+- name: Update apt cache and install prerequisites
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg-agent
+      - software-properties-common
+    state: present
+    update_cache: yes
+
+- name: Add Docker GPG key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+- name: Add Docker APT repository
+  apt_repository:
+    repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+    state: present
+
+- name: Install Docker and Docker Compose
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-compose-plugin
+    state: present
+    update_cache: yes
+
+- name: Start and enable Docker service
+  service:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Add user to docker group
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+
+- name: Configure sysctl for SonarQube (max_map_count)
+  sysctl:
+    name: vm.max_map_count
+    value: "262144"
+    state: present
+    reload: yes
+
+- name: Configure sysctl for SonarQube (file-max)
+  sysctl:
+    name: fs.file-max
+    value: "131072"
+    state: present
+    reload: yes
+
+- name: Create directory for SonarQube
+  file:
+    path: /opt/sonarqube
+    state: directory
+    mode: '0755'
+
+- name: Copy docker-compose template
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/sonarqube/docker-compose.yml
+
+- name: Start SonarQube via Docker Compose
+  command: docker compose up -d
+  args:
+    chdir: /opt/sonarqube
+  register: docker_compose_result
+  changed_when: "'Started' in docker_compose_result.stdout or 'Created' in docker_compose_result.stdout"
