@@ -30,47 +30,13 @@ resource "azurerm_monitor_action_group" "ag" {
     }
   }
 
-  # Telegram webhook receiver (via Logic App)
+  # Telegram webhook receiver (direct API call with basic formatting)
   dynamic "webhook_receiver" {
     for_each = var.telegram_bot_token != "" && var.telegram_chat_id != "" ? [1] : []
     content {
       name        = "telegram-notifications"
-      service_uri = azurerm_logic_app_workflow.telegram_alert[0].endpoint
+      service_uri = "https://api.telegram.org/bot${var.telegram_bot_token}/sendMessage?chat_id=${var.telegram_chat_id}&text=🚨+Azure+Alert+Triggered+🚨%0A%0A📊+Alert+from+${var.prefix}+infrastructure%0A🔗+View+in+Azure+Portal:+https://portal.azure.com&parse_mode=Markdown"
     }
-  }
-}
-
-# Logic App for beautiful Telegram notifications
-resource "azurerm_logic_app_workflow" "telegram_alert" {
-  count               = var.telegram_bot_token != "" && var.telegram_chat_id != "" ? 1 : 0
-  name                = "${var.prefix}-telegram-alert"
-  resource_group_name = var.resource_group_name
-  location            = var.location
-}
-
-resource "azurerm_logic_app_trigger_http_request" "telegram_alert_trigger" {
-  count        = var.telegram_bot_token != "" && var.telegram_chat_id != "" ? 1 : 0
-  name         = "azure-monitor-trigger"
-  logic_app_id = azurerm_logic_app_workflow.telegram_alert[0].id
-  schema = jsonencode({
-    type       = "object"
-    properties = {}
-  })
-}
-
-resource "azurerm_logic_app_action_http" "telegram_send" {
-  count        = var.telegram_bot_token != "" && var.telegram_chat_id != "" ? 1 : 0
-  name         = "send-telegram"
-  logic_app_id = azurerm_logic_app_workflow.telegram_alert[0].id
-  method       = "POST"
-  uri          = "https://api.telegram.org/bot${var.telegram_bot_token}/sendMessage"
-  body = jsonencode({
-    chat_id    = var.telegram_chat_id
-    text       = "🚨 *Azure Alert Triggered* 🚨\n\n📊 *Alert Details:*\n━━━━━━━━━━━━━━━━━━━━\n🔔 *Status:* Fired\n⏰ *Time:* @{triggerBody()?['data']?['firedDateTime']}\n🏷️ *Resource:* @{triggerBody()?['data']?['resourceName']}\n📦 *Resource Type:* @{triggerBody()?['data']?['resourceType']}\n👥 *Resource Group:* @{triggerBody()?['data']?['resourceGroupName']}\n📝 *Reason:* @{triggerBody()?['data']?['condition']?['allOf']?[0]?['metricName']} is @{triggerBody()?['data']?['condition']?['allOf']?[0]?['operator']} @{triggerBody()?['data']?['condition']?['allOf']?[0]?['threshold']} (current: @{triggerBody()?['data']?['condition']?['allOf']?[0]?['metricValue']})\n━━━━━━━━━━━━━━━━━━━━\n\n🔗 *View in Azure Portal:*\nhttps://portal.azure.com/#@/resource@{triggerBody()?['data']?['resourceId']}\n━━━━━━━━━━━━━━━━━━━━\n\n🤖 *Powered by Azure Monitor & Terraform*"
-    parse_mode = "Markdown"
-  })
-  headers = {
-    Content-Type = "application/json"
   }
 }
 
