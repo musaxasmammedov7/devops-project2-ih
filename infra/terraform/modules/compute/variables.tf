@@ -50,4 +50,5 @@ variable "custom_data" {
 variable "tier" {
   type        = string
   description = "Tier name (e.g. fe, be)"
+  default     = "be"
 }
