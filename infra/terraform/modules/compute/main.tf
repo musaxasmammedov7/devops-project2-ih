@@ -45,7 +45,13 @@ resource "azurerm_linux_virtual_machine_scale_set" "vmss" {
 
   # Ignore changes to instances since autoscale will manage it
   lifecycle {
-    ignore_changes = [instances]
+    ignore_changes = [
+      instances,
+      admin_ssh_key,
+      custom_data,
+      network_interface,
+      source_image_reference,
+    ]
   }
 }
 
