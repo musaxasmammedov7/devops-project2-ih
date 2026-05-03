@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import * as SpeechSDK from 'microsoft-cognitiveservices-speech-sdk';
 import { getCalories, recommendBurgerForCalories } from '../../utils/calorieData';
 
 interface Message {
@@ -21,74 +20,74 @@ export const AIAgent = ({ ingredients, onAddToCart }: Props) => {
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
   const [voiceMode, setVoiceMode] = useState(true);
-  const recognizerRef = useRef<SpeechSDK.SpeechRecognizer | null>(null);
-
-  const speechKey = import.meta.env.VITE_AZURE_SPEECH_KEY;
-  const speechRegion = import.meta.env.VITE_AZURE_SPEECH_REGION;
+  const recognitionRef = useRef<any>(null);
 
   const speak = (text: string, onDone?: () => void) => {
     if (!voiceMode) { onDone?.(); return; }
-    if (!speechKey || !speechRegion) { onDone?.(); return; }
     
     try {
-      const config = SpeechSDK.SpeechConfig.fromSubscription(speechKey, speechRegion);
-      config.speechSynthesisVoiceName = 'en-US-JennyNeural';
-      const synthesizer = new SpeechSDK.SpeechSynthesizer(config);
-      synthesizer.speakTextAsync(text, () => {
-        synthesizer.close();
-        onDone?.();
-      });
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'en-US';
+      utterance.onend = () => onDone?.();
+      utterance.onerror = () => onDone?.();
+      window.speechSynthesis.speak(utterance);
     } catch {
       onDone?.();
     }
   };
 
   const startListening = () => {
-    if (!speechKey || !speechRegion) {
-      setMessages(prev => [...prev, { role: 'agent', text: 'Voice input not configured. Please use text input instead.' }]);
-      setListening(false);
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      setMessages(prev => [...prev, { role: 'agent', text: 'Voice input not supported in this browser. Please use text input.' }]);
       return;
     }
 
     try {
-      const config = SpeechSDK.SpeechConfig.fromSubscription(speechKey, speechRegion);
-      config.speechRecognitionLanguage = 'en-US';
-      const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
-      const recognizer = new SpeechSDK.SpeechRecognizer(config, audioConfig);
-      recognizerRef.current = recognizer;
-      setListening(true);
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.continuous = false;
+      recognition.interimResults = false;
 
-      recognizer.recognizeOnceAsync((result: SpeechSDK.SpeechRecognitionResult) => {
-        if (result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
-          setInput(result.text);
-          sendMessage(result.text);
-        } else {
-          setMessages(prev => [...prev, { role: 'agent', text: 'Could not hear you. Please try again.' }]);
-          setListening(false);
-        }
-        recognizer.close();
-      });
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(transcript);
+        sendMessage(transcript);
+        setListening(false);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setMessages(prev => [...prev, { role: 'agent', text: 'Could not hear you. Please try again.' }]);
+        setListening(false);
+      };
+
+      recognition.onend = () => {
+        setListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+      setListening(true);
     } catch (error) {
       console.error('Speech recognition error:', error);
-      setMessages(prev => [...prev, { role: 'agent', text: 'Microphone access denied or speech service error. Please use text input.' }]);
+      setMessages(prev => [...prev, { role: 'agent', text: 'Microphone access denied. Please use text input.' }]);
       setListening(false);
     }
   };
 
   const stopListening = () => {
-    recognizerRef.current?.close();
+    recognitionRef.current?.stop();
     setListening(false);
   };
 
   useEffect(() => {
-    if (voiceMode && speechKey && speechRegion) {
+    if (voiceMode) {
       setTimeout(() => {
         speak('Hello! I am Burger AI. I can help you order burgers or recommend ingredients based on calories!', () => {
           startListening();
         });
       }, 1000);
-    } else if (!speechKey || !speechRegion) {
-      setMessages(prev => [...prev, { role: 'agent', text: 'Voice features require Azure Speech credentials. Using text-only mode.' }]);
     }
   }, []);
 
