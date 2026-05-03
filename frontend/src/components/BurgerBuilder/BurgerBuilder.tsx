@@ -4,7 +4,8 @@ import { useCart } from '../../context/CartContext';
 import { getIngredients } from '../../services/api';
 import BurgerPreview from './BurgerPreview';
 import IngredientList from '../Ingredients/IngredientList';
-import OrderTracker from './OrderTracker';
+import CalorieCounter from '../CalorieCounter/CalorieCounter';
+import { getCalories } from '../../utils/calorieData';
 import './BurgerBuilder.css';
 
 const BurgerBuilder: React.FC = () => {
@@ -32,9 +33,8 @@ const BurgerBuilder: React.FC = () => {
     try {
       setLoading(true);
       const data = await getIngredients();
-      // Handle both grouped format (legacy) and flat list format (current backend)
-      const allIngredients = Array.isArray(data) 
-        ? data 
+      const allIngredients = Array.isArray(data)
+        ? data
         : [
             ...data.buns,
             ...data.patties,
@@ -45,7 +45,6 @@ const BurgerBuilder: React.FC = () => {
       setError(null);
     } catch (err) {
       setError('Failed to load ingredients. Using sample data for demo.');
-      // Set sample data for demo purposes
       setSampleIngredients();
     } finally {
       setLoading(false);
@@ -72,19 +71,24 @@ const BurgerBuilder: React.FC = () => {
     setIngredients(sampleIngredients);
   };
 
+  const getTotalCalories = () => {
+    return layers.reduce((total, layer) => {
+      const ingredient = getIngredientById(layer.ingredientId);
+      return total + (ingredient ? getCalories(ingredient.name) * layer.quantity : 0);
+    }, 0);
+  };
+
   const handleAddToCart = () => {
     if (layers.length === 0) {
       showNotification('Please add some ingredients first!');
       return;
     }
-
     const cartItem = {
       id: Date.now(),
       layers: layers,
       totalPrice: getTotalPrice(),
       quantity: 1,
     };
-
     addItemToCart(cartItem);
     clearLayers();
     showNotification('Burger added to cart! 🎉');
@@ -109,7 +113,7 @@ const BurgerBuilder: React.FC = () => {
       {notification && (
         <div className="notification">{notification}</div>
       )}
-      
+
       {error && (
         <div className="error-banner">
           ⚠️ {error}
@@ -134,13 +138,19 @@ const BurgerBuilder: React.FC = () => {
             getIngredientById={getIngredientById}
             onRemoveLayer={removeLayer}
           />
-          
+
           <div className="builder-actions">
+            <CalorieCounter
+              calories={getTotalCalories()}
+              layers={layers}
+              getIngredientById={getIngredientById}
+            />
+
             <div className="price-display">
-              <span className="price-label">Total:</span>
-              <span className="price-value">${getTotalPrice().toFixed(2)}</span>
+              <span className="price-label">Total</span>
+              <span className="price-value">💰 ${getTotalPrice().toFixed(2)}</span>
             </div>
-            
+
             <div className="action-buttons">
               <button
                 className="clear-button"
@@ -160,10 +170,8 @@ const BurgerBuilder: React.FC = () => {
           </div>
         </div>
       </div>
-      <OrderTracker />
     </div>
   );
 };
 
 export default BurgerBuilder;
-
