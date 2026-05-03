@@ -7,8 +7,6 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
   <CartProvider>{children}</CartProvider>
 );
 
-const setup = () => renderHook(() => useCart(), { wrapper });
-
 describe('CartContext', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -22,12 +20,12 @@ describe('CartContext', () => {
   };
 
   it('should initialize with empty cart', () => {
-    const { result } = setup();
+    const { result } = renderHook(() => useCart(), { wrapper });
     expect(result.current.cart).toEqual([]);
   });
 
   it('should add item to cart', () => {
-    const { result } = setup();
+    const { result } = renderHook(() => useCart(), { wrapper });
     
     act(() => {
       result.current.addItemToCart(mockCartItem);
@@ -38,7 +36,7 @@ describe('CartContext', () => {
   });
 
   it('should remove item from cart', () => {
-    const { result } = setup();
+    const { result } = renderHook(() => useCart(), { wrapper });
     
     act(() => {
       result.current.addItemToCart(mockCartItem);
@@ -52,7 +50,7 @@ describe('CartContext', () => {
   });
 
   it('should update item quantity', () => {
-    const { result } = setup();
+    const { result } = renderHook(() => useCart(), { wrapper });
     
     act(() => {
       result.current.addItemToCart(mockCartItem);
@@ -66,7 +64,7 @@ describe('CartContext', () => {
   });
 
   it('should remove item when quantity updated to 0', () => {
-    const { result } = setup();
+    const { result } = renderHook(() => useCart(), { wrapper });
     
     act(() => {
       result.current.addItemToCart(mockCartItem);
@@ -80,7 +78,7 @@ describe('CartContext', () => {
   });
 
   it('should clear entire cart', () => {
-    const { result } = setup();
+    const { result } = renderHook(() => useCart(), { wrapper });
     
     act(() => {
       result.current.addItemToCart(mockCartItem);
@@ -95,7 +93,7 @@ describe('CartContext', () => {
   });
 
   it('should calculate total price correctly', () => {
-    const { result } = setup();
+    const { result } = renderHook(() => useCart(), { wrapper });
     
     act(() => {
       result.current.addItemToCart({ ...mockCartItem, totalPrice: 10, quantity: 2 });
@@ -106,7 +104,7 @@ describe('CartContext', () => {
   });
 
   it('should calculate total items correctly', () => {
-    const { result } = setup();
+    const { result } = renderHook(() => useCart(), { wrapper });
     
     act(() => {
       result.current.addItemToCart({ ...mockCartItem, quantity: 2 });
@@ -117,7 +115,7 @@ describe('CartContext', () => {
   });
 
   it('should persist cart to localStorage', () => {
-    const { result } = setup();
+    const { result } = renderHook(() => useCart(), { wrapper });
     
     act(() => {
       result.current.addItemToCart(mockCartItem);
@@ -132,7 +130,7 @@ describe('CartContext', () => {
     const initialCart = [mockCartItem];
     localStorage.setItem('cart', JSON.stringify(initialCart));
 
-    const { result } = setup();
+    const { result } = renderHook(() => useCart(), { wrapper });
 
     expect(result.current.cart).toHaveLength(1);
     expect(result.current.cart[0]).toEqual(mockCartItem);
@@ -144,3 +142,4 @@ describe('CartContext', () => {
     }).toThrow('useCart must be used within a CartProvider');
   });
 });
+
