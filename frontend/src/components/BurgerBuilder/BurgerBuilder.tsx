@@ -4,6 +4,7 @@ import { useCart } from '../../context/CartContext';
 import { getIngredients } from '../../services/api';
 import BurgerPreview from './BurgerPreview';
 import IngredientList from '../Ingredients/IngredientList';
+import OrderTracker from './OrderTracker';
 import './BurgerBuilder.css';
 
 const BurgerBuilder: React.FC = () => {
@@ -159,6 +160,7 @@ const BurgerBuilder: React.FC = () => {
           </div>
         </div>
       </div>
+      <OrderTracker />
     </div>
   );
 };
