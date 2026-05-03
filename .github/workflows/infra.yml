@@ -82,6 +82,20 @@ jobs:
           terraform import "$address" "$resource_id" || true
         }
 
+        import_state_only() {
+          local address="$1"
+          local resource_id="$2"
+
+          terraform state show "$address" >/dev/null 2>&1
+          if [ $? -eq 0 ]; then
+            echo "Already in state: $address"
+            return 0
+          fi
+
+          echo "Importing $address"
+          terraform import "$address" "$resource_id" || true
+        }
+
         BASE="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}"
 
         import_if_exists 'azurerm_public_ip.appgw_pip' "${BASE}/providers/Microsoft.Network/publicIPAddresses/${PREFIX}-appgw-pip"
@@ -89,11 +103,11 @@ jobs:
         import_if_exists 'azurerm_user_assigned_identity.appgw' "${BASE}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/${PREFIX}-appgw-identity"
         TERRAFORM_OBJECT_ID=$(az ad sp show --id "${{ secrets.AZURE_CLIENT_ID }}" --query id -o tsv 2>/dev/null)
         if [ -n "$TERRAFORM_OBJECT_ID" ]; then
-          import_if_exists 'azurerm_key_vault_access_policy.terraform_certificate' "${BASE}/providers/Microsoft.KeyVault/vaults/${PREFIX}appgwkv/objectId/${TERRAFORM_OBJECT_ID}"
+          import_state_only 'azurerm_key_vault_access_policy.terraform_certificate' "${BASE}/providers/Microsoft.KeyVault/vaults/${PREFIX}appgwkv/objectId/${TERRAFORM_OBJECT_ID}"
         fi
         APPGW_IDENTITY_OBJECT_ID=$(az identity show --resource-group "${RESOURCE_GROUP}" --name "${PREFIX}-appgw-identity" --query principalId -o tsv 2>/dev/null)
         if [ -n "$APPGW_IDENTITY_OBJECT_ID" ]; then
-          import_if_exists 'azurerm_key_vault_access_policy.appgw_certificate' "${BASE}/providers/Microsoft.KeyVault/vaults/${PREFIX}appgwkv/objectId/${APPGW_IDENTITY_OBJECT_ID}"
+          import_state_only 'azurerm_key_vault_access_policy.appgw_certificate' "${BASE}/providers/Microsoft.KeyVault/vaults/${PREFIX}appgwkv/objectId/${APPGW_IDENTITY_OBJECT_ID}"
         fi
 
         import_if_exists 'module.networking.azurerm_virtual_network.vnet' "${BASE}/providers/Microsoft.Network/virtualNetworks/${PREFIX}-vnet"
