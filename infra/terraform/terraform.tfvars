@@ -17,4 +17,4 @@ vm_admin_username = "azureuser"
 # or via a secure terraform.tfvars that is NOT committed to git.
 
 custom_domain_name                        = "burgergroup2.com"
-appgw_ssl_certificate_key_vault_secret_id = "https://burgerappgwkv.vault.azure.net/secrets/appgw-cert"
+appgw_ssl_certificate_key_vault_secret_id = "https://burgerappgwkv.vault.azure.net/secrets/appgw-cert/6d55b9630d7c4786993ac6c7e1702306"
