@@ -71,13 +71,32 @@ az ad sp create-for-rbac \
 ```
 Save the output — you'll need `clientId`, `clientSecret`, `subscriptionId`, `tenantId`.
 
-### 3. Azure Quotas (Important!)
+### 3. Azure Quotas & Budgets (Important!)
 Verify your quota for `standardDASv7Family` vCPUs in your chosen region:
 ```bash
 az vm list-usage --location "UK South" -o table | grep -i "das"
 ```
 > ⚠️ This project uses `Standard_D2ads_v7` VMs (2 vCPUs each × 3 VMs = **6 vCPUs minimum** required).  
 > If quota is insufficient, either request an increase or choose another region with free quota.
+
+**Set up Azure Budget alerts** (recommended for cost control):
+```bash
+# Create a budget alert at 80% of expected monthly cost
+az consumption budget create \
+  --account-name <billing-account-id> \
+  --name "burger-builder-budget" \
+  --amount 100 \
+  --time-grain Monthly \
+  --category Cost \
+  --notification-email your-email@example.com \
+  --notification-threshold 80
+```
+Estimated monthly costs (varies by region):
+- Application Gateway (WAF v2): ~$200-300/month
+- 2x VMSS (Standard_D2ads_v7): ~$150-200/month
+- Azure SQL Database: ~$50-100/month
+- SonarQube VM: ~$40-60/month
+- **Total estimated: ~$440-660/month**
 
 ### 4. SSH Key Generation
 Generate a **dedicated, passphrase-free** SSH key for this project:
@@ -220,6 +239,21 @@ After Ansible finishes, open `http://<SONAR_IP>:9000` in your browser:
 
 ## 🚀 Step 3: Deploy Applications (GitHub Actions)
 
+### GitHub Actions Workflows
+The project includes three GitHub Actions workflows for CI/CD automation:
+
+#### 1. Infrastructure Deployment (`infra.yml`)
+- **Triggers**: Push to `main` when files in `infra/terraform/**` change, or manual dispatch
+- **Purpose**: Provision Azure infrastructure via Terraform and configure SonarQube via Ansible
+- **Steps**:
+  1. Azure login with service principal
+  2. Create Terraform state storage account
+  3. Run `terraform init`, `plan`, and `apply`
+  4. Run Ansible playbook to configure SonarQube VM
+  5. Output SonarQube public IP
+
+#### 2. Frontend Deployment (`frontend.yml`)
+
 ### Frontend Pipeline (`frontend.yml`)
 **Triggers:** Push to `main` when files in `frontend/**` change, or manual dispatch.
 
@@ -232,16 +266,22 @@ After Ansible finishes, open `http://<SONAR_IP>:9000` in your browser:
 # GitHub → Actions → "Build and Deploy Frontend" → Run workflow
 ```
 
-### Backend Pipeline (`backend.yml`)
-**Triggers:** Push to `main` when files in `backend/**` change, or manual dispatch.
+#### 3. Backend Deployment (`backend.yml`)
+- **Triggers**: Push to `main` when files in `backend/**` change, or manual dispatch
+- **Purpose**: Build, test, and deploy Spring Boot backend to BE VMSS
+- **Steps**:
+  1. Set up Java 21
+  2. Build with Maven
+  3. Run tests and SonarQube scan
+  4. Upload JAR artifact
+  5. SSH through SonarQube Jumpbox
+  6. Deploy JAR to all BE VMSS instances
+  7. Start application with `nohup java -jar`
 
-**Stages:**
-1. **Build & Test** — `mvn clean verify`, SonarQube scan via Maven, upload JAR artifact
-2. **Deploy** — SSH through SonarQube Jumpbox → scp JAR to all BE VMSS instances → install Java 21 → start with `nohup java -jar`
-
+### Manual Trigger
 ```bash
-# Trigger manually
-# GitHub → Actions → "Build and Deploy Backend" → Run workflow
+# Trigger any workflow manually
+# GitHub → Actions → Select workflow → Run workflow
 ```
 
 ### How SSH Deployment Works (ProxyJump)
@@ -271,6 +311,8 @@ Host 10.0.*
 ---
 
 ## ✅ Step 4: Validate the Deployment
+
+### Health Check Commands
 
 ### 1. Check Application Gateway Backend Health
 ```bash
@@ -314,7 +356,7 @@ az vmss run-command invoke \
 | `http://51.142.251.112/api/ingredients` | `200 OK` — JSON array of ingredients |
 | `http://51.142.251.112/api/orders/history` | `200 OK` — JSON array of orders |
 
-### 5. Sample curl / API Tests
+### Sample curl / API Tests
 
 **Get all ingredients:**
 ```bash
@@ -373,7 +415,7 @@ Key requests to test:
 
 ---
 
-## 🔧 Troubleshooting
+## 🔧 Troubleshooting Guide
 
 ### Bad Gateway (502)
 The Application Gateway cannot reach a backend server.
@@ -445,3 +487,11 @@ Wait ~5 minutes, then re-trigger the Terraform pipeline.
 ## 📜 License
 
 This project is part of a capstone project (IH DevOps Bootcamp) for educational purposes.
+
+## 📞 Support
+
+For issues or questions:
+- Check the troubleshooting section above
+- Review GitHub Actions logs in the Actions tab
+- Check Azure portal for resource status
+- Verify SonarQube scan results at `http://<SONAR_IP>:9000`
