@@ -75,7 +75,7 @@ jobs:
         chmod 600 ~/.ssh/id_rsa
         
         # Get SonarQube Public IP
-        SONAR_IP=$(az network public-ip show -g musa-project2-rg -n burger-sonar-pip --query ipAddress -o tsv)
+        SONAR_IP=$(az network public-ip show -g musa-project2-rg -n musa-sonar-pip --query ipAddress -o tsv)
         
         # Setup SSH config for ProxyJump
         cat << EOF > ~/.ssh/config
@@ -96,10 +96,10 @@ jobs:
         chmod 600 ~/.ssh/config
         
         # Get Private IPs of BE VMSS instances
-        BE_IPS=$(az vmss nic list -g musa-project2-rg --vmss-name burger-vmss-be-musa --query "[].ipConfigurations[0].privateIPAddress" -o tsv)
+        BE_IPS=$(az vmss nic list -g musa-project2-rg --vmss-name musa-vmss-be --query "[].ipConfigurations[0].privateIPAddress" -o tsv)
         
         for IP in $BE_IPS; do
           echo "Deploying to $IP..."
           scp *.jar $IP:/home/azureuser/app.jar
-          ssh $IP "sudo apt-get update && sudo apt-get install -y openjdk-21-jdk && sudo pkill -f 'java -jar' || true && nohup java -jar /home/azureuser/app.jar '--spring.datasource.url=jdbc:sqlserver://burger-sqlserver.database.windows.net:1433;database=burgerbuilder-group22;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;' '--spring.datasource.username=${{ secrets.SQL_ADMIN_USERNAME }}' '--spring.datasource.password=${{ secrets.SQL_ADMIN_PASSWORD }}' '--server.port=8080' > /home/azureuser/app.log 2>&1 < /dev/null &"
+          ssh $IP "sudo apt-get update && sudo apt-get install -y openjdk-21-jdk && sudo pkill -f 'java -jar' || true && nohup java -jar /home/azureuser/app.jar '--spring.datasource.url=jdbc:sqlserver://musa-sqlserver.database.windows.net:1433;database=burgerbuilder;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;' '--spring.datasource.username=${{ secrets.SQL_ADMIN_USERNAME }}' '--spring.datasource.password=${{ secrets.SQL_ADMIN_PASSWORD }}' '--server.port=8080' > /home/azureuser/app.log 2>&1 < /dev/null &"
         done
