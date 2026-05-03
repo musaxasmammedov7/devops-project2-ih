@@ -1,10 +1,10 @@
 :root {
-  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Outfit', 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
   color-scheme: light;
-  color: rgba(0, 0, 0, 0.87);
+  color: #1a202c;
   background-color: #f5f7fa;
 
   font-synthesis: none;
@@ -23,16 +23,37 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  /* Premium background gradient */
+  background: 
+    radial-gradient(at 0% 0%, rgba(102, 126, 234, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(118, 75, 162, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(102, 126, 234, 0.1) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(118, 75, 162, 0.1) 0px, transparent 50%),
+    #f8fafc;
   background-attachment: fixed;
 }
 
+/* Global Glassmorphism utility */
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
 h1, h2, h3, h4, h5, h6 {
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: -0.025em;
 }
 
 button {
   font-family: inherit;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:active {
+  transform: scale(0.95);
 }
 
 a {

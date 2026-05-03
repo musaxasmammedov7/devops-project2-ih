@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import './Header.css';
 
 const Header: React.FC = () => {
   const { getTotalItems } = useCart();
+  const { user, logout, isAuthenticated } = useAuth();
   const itemCount = getTotalItems();
 
   return (
@@ -24,6 +26,15 @@ const Header: React.FC = () => {
               <span className="cart-badge">{itemCount}</span>
             )}
           </Link>
+          
+          {isAuthenticated ? (
+            <div className="user-nav">
+              <span className="user-name">👤 {user?.name}</span>
+              <button onClick={logout} className="logout-btn">Logout</button>
+            </div>
+          ) : (
+            <Link to="/login" className="login-link">Login</Link>
+          )}
         </nav>
       </div>
     </header>
@@ -31,4 +42,3 @@ const Header: React.FC = () => {
 };
 
 export default Header;
-

@@ -52,24 +52,63 @@
   position: relative;
 }
 
-.cart-icon {
-  font-size: 1.3rem;
-}
-
 .cart-badge {
-  background: #ff4757;
-  color: white;
-  border-radius: 50%;
-  width: 22px;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 700;
   position: absolute;
   top: -8px;
-  right: -12px;
+  right: -8px;
+  background-color: #ff4757;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 14px;
+  text-align: center;
+}
+
+.user-nav {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-left: 10px;
+  padding-left: 15px;
+  border-left: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.logout-btn {
+  background: none;
+  border: 1px solid #dc3545;
+  color: #dc3545;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.3s;
+}
+
+.logout-btn:hover {
+  background: #dc3545;
+  color: white;
+}
+
+.login-link {
+  background: #007bff;
+  color: white !important;
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s;
+}
+
+.login-link:hover {
+  background: #0056b3;
 }
 
 @media (max-width: 768px) {
