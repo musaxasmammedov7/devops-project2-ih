@@ -41,6 +41,7 @@ resource "azurerm_monitor_action_group" "ag" {
 }
 
 # 1. App Gateway Backend Health Alert
+# Updated webhook with new chat_id
 resource "azurerm_monitor_metric_alert" "appgw_health" {
   name                = "${var.prefix}-alert-appgw-health"
   resource_group_name = var.resource_group_name
