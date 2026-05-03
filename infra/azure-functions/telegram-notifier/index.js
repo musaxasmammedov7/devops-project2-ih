@@ -21,7 +21,11 @@ module.exports = async function (context, req) {
   const resourceGroup = contextData.resourceGroupName || 'Unknown';
   const timestamp = contextData.timestamp || new Date().toISOString();
   const conditionType = contextData.conditionType || 'Unknown';
-  const condition = contextData.condition || {};
+  const subscriptionId = contextData.subscriptionId || '';
+  const alertName = alertData.data?.context?.name || 'Alert';
+
+  // Create Azure portal link for the alert
+  const portalLink = `https://portal.azure.com/#@${contextData.tenantId || ''}/resource/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/${resourceType}/${resourceName}`;
 
   // Create beautiful message with emojis and markdown
   const message = `
@@ -37,10 +41,8 @@ module.exports = async function (context, req) {
 📝 *Condition:* \`${conditionType}\`
 ━━━━━━━━━━━━━━━━━━━━
 
-🔍 **Condition Details:**
-\`\`\`json
-${JSON.stringify(condition, null, 2)}
-\`\`\`
+� **View in Azure Portal:**
+\`${portalLink}\`
 ━━━━━━━━━━━━━━━━━━━━
 
 🤖 *Powered by Azure Monitor & Azure Function*
