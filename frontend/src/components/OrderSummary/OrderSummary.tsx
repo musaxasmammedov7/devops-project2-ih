@@ -121,12 +121,7 @@ const OrderSummary: React.FC = () => {
       clearCart();
     } catch (err) {
       console.error('Failed to create order:', err);
-      // For demo: simulate successful order
-      const mockOrderId = `ORD-${Date.now()}`;
-      setOrderId(mockOrderId);
-      setOrderPlaced(true);
-      setActiveOrder(mockOrderId, 15);
-      clearCart();
+      setError('Failed to place order. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }

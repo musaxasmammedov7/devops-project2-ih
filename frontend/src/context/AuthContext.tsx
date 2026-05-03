@@ -8,7 +8,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  activeOrder: { id: string; readyIn: number } | null;
+  activeOrder: { id: string; readyIn: number; timestamp: number } | null;
   login: (email: string, password: string) => boolean;
   register: (email: string, password: string, name: string) => boolean;
   logout: () => void;
@@ -21,14 +21,24 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [activeOrder, setActiveOrderState] = useState<{ id: string; readyIn: number } | null>(null);
+  const [activeOrder, setActiveOrderState] = useState<{ id: string; readyIn: number; timestamp: number } | null>(null);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('burger_user');
     if (savedUser) setUser(JSON.parse(savedUser));
     
     const savedOrder = localStorage.getItem('active_order');
-    if (savedOrder) setActiveOrderState(JSON.parse(savedOrder));
+    if (savedOrder) {
+      const order = JSON.parse(savedOrder);
+      // Only restore if it's less than 15 minutes old
+      const now = Date.now();
+      const diffMinutes = Math.floor((now - order.timestamp) / 60000);
+      if (diffMinutes < order.readyIn) {
+        setActiveOrderState({ ...order, readyIn: order.readyIn - diffMinutes });
+      } else {
+        localStorage.removeItem('active_order');
+      }
+    }
   }, []);
 
   const register = (email: string, password: string, name: string) => {
@@ -55,11 +65,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = () => {
     setUser(null);
+    setActiveOrderState(null);
     localStorage.removeItem('burger_user');
+    localStorage.removeItem('active_order');
   };
 
   const setActiveOrder = (id: string, time: number) => {
-    const order = { id, readyIn: time };
+    const order = { id, readyIn: time, timestamp: Date.now() };
     setActiveOrderState(order);
     localStorage.setItem('active_order', JSON.stringify(order));
   };

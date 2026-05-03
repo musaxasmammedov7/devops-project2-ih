@@ -1,13 +1,7 @@
 import axios from 'axios';
 import type { Ingredient, CartItem, Order, IngredientsResponse, IngredientCategory } from '../types';
 
-// В продакшене используем относительный URL - App Gateway сам перенаправит /api/* на бэкенд
-// В локальной разработке используем VITE_API_BASE_URL (например: http://localhost:8080)
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-
-// Debug: Log the API URL to help with troubleshooting
-console.log('API_BASE_URL:', API_BASE_URL);
-console.log('VITE_API_BASE_URL env var:', import.meta.env.VITE_API_BASE_URL);
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -65,15 +59,17 @@ export const getOrder = async (orderId: string): Promise<Order> => {
 };
 
 // Order History APIs
+// We use /api/orders/history?email=... because it's more robust with dots in emails
 export const getOrderHistory = async (email?: string): Promise<Order[]> => {
-  const params = email ? { email } : {};
-  const response = await apiClient.get<Order[]>('/api/orders/history', { params });
+  const response = await apiClient.get<Order[]>('/api/orders/history', { 
+    params: email ? { email } : {} 
+  });
   return response.data;
 };
 
 export const getOrdersByCustomerEmail = async (email: string): Promise<Order[]> => {
-  const response = await apiClient.get<Order[]>(`/api/orders/customer/${email}`);
-  return response.data;
+  // Redirecting to getOrderHistory which uses query params for stability
+  return getOrderHistory(email);
 };
 
 export const getOrdersBySession = async (sessionId: string): Promise<Order[]> => {
@@ -82,4 +78,3 @@ export const getOrdersBySession = async (sessionId: string): Promise<Order[]> =>
 };
 
 export default apiClient;
-
