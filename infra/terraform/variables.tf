@@ -1,7 +1,6 @@
 variable "prefix" {
   description = "Prefix for all resources" # Описание переменной
   type        = string                     # Тип переменной - строка
-  default     = "musa"
 }
 
 variable "location" {
