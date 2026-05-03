@@ -87,6 +87,14 @@ jobs:
         import_if_exists 'azurerm_public_ip.appgw_pip' "${BASE}/providers/Microsoft.Network/publicIPAddresses/${PREFIX}-appgw-pip"
         import_if_exists 'azurerm_key_vault.appgw' "${BASE}/providers/Microsoft.KeyVault/vaults/${PREFIX}appgwkv"
         import_if_exists 'azurerm_user_assigned_identity.appgw' "${BASE}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/${PREFIX}-appgw-identity"
+        TERRAFORM_OBJECT_ID=$(az ad sp show --id "${{ secrets.AZURE_CLIENT_ID }}" --query id -o tsv 2>/dev/null)
+        if [ -n "$TERRAFORM_OBJECT_ID" ]; then
+          import_if_exists 'azurerm_key_vault_access_policy.terraform_certificate' "${BASE}/providers/Microsoft.KeyVault/vaults/${PREFIX}appgwkv/objectId/${TERRAFORM_OBJECT_ID}"
+        fi
+        APPGW_IDENTITY_OBJECT_ID=$(az identity show --resource-group "${RESOURCE_GROUP}" --name "${PREFIX}-appgw-identity" --query principalId -o tsv 2>/dev/null)
+        if [ -n "$APPGW_IDENTITY_OBJECT_ID" ]; then
+          import_if_exists 'azurerm_key_vault_access_policy.appgw_certificate' "${BASE}/providers/Microsoft.KeyVault/vaults/${PREFIX}appgwkv/objectId/${APPGW_IDENTITY_OBJECT_ID}"
+        fi
 
         import_if_exists 'module.networking.azurerm_virtual_network.vnet' "${BASE}/providers/Microsoft.Network/virtualNetworks/${PREFIX}-vnet"
         import_if_exists 'module.networking.azurerm_subnet.appgw' "${BASE}/providers/Microsoft.Network/virtualNetworks/${PREFIX}-vnet/subnets/snet-appgw"
@@ -113,9 +121,9 @@ jobs:
         import_if_exists 'module.database.azurerm_private_endpoint.sql_pe' "${BASE}/providers/Microsoft.Network/privateEndpoints/${PREFIX}-sql-pe"
 
         import_if_exists 'module.vmss_fe.azurerm_linux_virtual_machine_scale_set.vmss' "${BASE}/providers/Microsoft.Compute/virtualMachineScaleSets/${PREFIX}-vmss-fe-musa"
-        import_if_exists 'module.vmss_fe.azurerm_monitor_autoscale_setting.vmss' "${BASE}/providers/Microsoft.Insights/autoscaleSettings/${PREFIX}-autoscale-fe-musa"
+        import_if_exists 'module.vmss_fe.azurerm_monitor_autoscale_setting.vmss' "${BASE}/providers/Microsoft.Insights/autoScaleSettings/${PREFIX}-autoscale-fe-musa"
         import_if_exists 'module.vmss_be.azurerm_linux_virtual_machine_scale_set.vmss' "${BASE}/providers/Microsoft.Compute/virtualMachineScaleSets/${PREFIX}-vmss-be-musa"
-        import_if_exists 'module.vmss_be.azurerm_monitor_autoscale_setting.vmss' "${BASE}/providers/Microsoft.Insights/autoscaleSettings/${PREFIX}-autoscale-be-musa"
+        import_if_exists 'module.vmss_be.azurerm_monitor_autoscale_setting.vmss' "${BASE}/providers/Microsoft.Insights/autoScaleSettings/${PREFIX}-autoscale-be-musa"
 
         import_if_exists 'module.sonarqube_vm.azurerm_public_ip.pip' "${BASE}/providers/Microsoft.Network/publicIPAddresses/${PREFIX}-sonar-pip"
         import_if_exists 'module.sonarqube_vm.azurerm_network_interface.nic' "${BASE}/providers/Microsoft.Network/networkInterfaces/${PREFIX}-sonar-nic"
@@ -127,6 +135,7 @@ jobs:
         import_if_exists 'module.monitoring.azurerm_monitor_metric_alert.appgw_health' "${BASE}/providers/Microsoft.Insights/metricAlerts/${PREFIX}-alert-appgw-health"
         import_if_exists 'module.monitoring.azurerm_monitor_metric_alert.vmss_fe_cpu' "${BASE}/providers/Microsoft.Insights/metricAlerts/${PREFIX}-alert-vmss-fe-cpu-musa"
         import_if_exists 'module.monitoring.azurerm_monitor_metric_alert.vmss_be_cpu' "${BASE}/providers/Microsoft.Insights/metricAlerts/${PREFIX}-alert-vmss-be-cpu-musa"
+        import_if_exists 'module.monitoring.azurerm_monitor_metric_alert.sql_cpu' "${BASE}/providers/Microsoft.Insights/metricAlerts/${PREFIX}-alert-sql-cpu"
 
     - name: Terraform Format
       run: terraform fmt -check
