@@ -10,7 +10,7 @@ on:
 
 env:
   AZURE_WEBAPP_NAME: burger-be-app
-  JAVA_VERSION: '17'
+  JAVA_VERSION: '21'
 
 jobs:
   build-and-test:
@@ -95,7 +95,7 @@ jobs:
             --instance-id $ID \
             --command-id RunShellScript \
             --scripts "
-              sudo apt-get update && sudo apt-get install -y openjdk-17-jdk
+              sudo apt-get update && sudo apt-get install -y openjdk-21-jdk
               sudo pkill -f 'java -jar' || true
               nohup java -jar /home/azureuser/app.jar \
                 --spring.datasource.url='jdbc:sqlserver://burger-sqlserver.database.windows.net:1433;database=burgerbuilder-group22;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;' \
