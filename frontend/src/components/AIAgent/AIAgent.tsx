@@ -28,33 +28,51 @@ export const AIAgent = ({ ingredients, onAddToCart }: Props) => {
 
   const speak = (text: string, onDone?: () => void) => {
     if (!voiceMode) { onDone?.(); return; }
-    const config = SpeechSDK.SpeechConfig.fromSubscription(speechKey, speechRegion);
-    config.speechSynthesisVoiceName = 'en-US-JennyNeural';
-    const synthesizer = new SpeechSDK.SpeechSynthesizer(config);
-    synthesizer.speakTextAsync(text, () => {
-      synthesizer.close();
+    if (!speechKey || !speechRegion) { onDone?.(); return; }
+    
+    try {
+      const config = SpeechSDK.SpeechConfig.fromSubscription(speechKey, speechRegion);
+      config.speechSynthesisVoiceName = 'en-US-JennyNeural';
+      const synthesizer = new SpeechSDK.SpeechSynthesizer(config);
+      synthesizer.speakTextAsync(text, () => {
+        synthesizer.close();
+        onDone?.();
+      });
+    } catch {
       onDone?.();
-    });
+    }
   };
 
   const startListening = () => {
-    const config = SpeechSDK.SpeechConfig.fromSubscription(speechKey, speechRegion);
-    config.speechRecognitionLanguage = 'en-US';
-    const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
-    const recognizer = new SpeechSDK.SpeechRecognizer(config, audioConfig);
-    recognizerRef.current = recognizer;
-    setListening(true);
+    if (!speechKey || !speechRegion) {
+      setMessages(prev => [...prev, { role: 'agent', text: 'Voice input not configured. Please use text input instead.' }]);
+      setListening(false);
+      return;
+    }
 
-    recognizer.recognizeOnceAsync((result: SpeechSDK.SpeechRecognitionResult) => {
-      if (result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
-        setInput(result.text);
-        sendMessage(result.text);
-      } else {
-        setMessages(prev => [...prev, { role: 'agent', text: 'Could not hear you. Please try again.' }]);
-        setListening(false);
-      }
-      recognizer.close();
-    });
+    try {
+      const config = SpeechSDK.SpeechConfig.fromSubscription(speechKey, speechRegion);
+      config.speechRecognitionLanguage = 'en-US';
+      const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+      const recognizer = new SpeechSDK.SpeechRecognizer(config, audioConfig);
+      recognizerRef.current = recognizer;
+      setListening(true);
+
+      recognizer.recognizeOnceAsync((result: SpeechSDK.SpeechRecognitionResult) => {
+        if (result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
+          setInput(result.text);
+          sendMessage(result.text);
+        } else {
+          setMessages(prev => [...prev, { role: 'agent', text: 'Could not hear you. Please try again.' }]);
+          setListening(false);
+        }
+        recognizer.close();
+      });
+    } catch (error) {
+      console.error('Speech recognition error:', error);
+      setMessages(prev => [...prev, { role: 'agent', text: 'Microphone access denied or speech service error. Please use text input.' }]);
+      setListening(false);
+    }
   };
 
   const stopListening = () => {
@@ -63,12 +81,14 @@ export const AIAgent = ({ ingredients, onAddToCart }: Props) => {
   };
 
   useEffect(() => {
-    if (voiceMode) {
+    if (voiceMode && speechKey && speechRegion) {
       setTimeout(() => {
         speak('Hello! I am Burger AI. I can help you order burgers or recommend ingredients based on calories!', () => {
           startListening();
         });
       }, 1000);
+    } else if (!speechKey || !speechRegion) {
+      setMessages(prev => [...prev, { role: 'agent', text: 'Voice features require Azure Speech credentials. Using text-only mode.' }]);
     }
   }, []);
 
