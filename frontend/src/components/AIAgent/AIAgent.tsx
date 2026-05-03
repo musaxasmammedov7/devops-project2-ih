@@ -107,9 +107,13 @@ export const AIAgent = ({ ingredients, onAddToCart }: Props) => {
       if (calorieTarget) {
         const reply = handleCalorieRequest(calorieTarget);
         setMessages(prev => [...prev, { role: 'agent', text: reply }]);
-        speak(reply, () => {
-          if (voiceMode) startListening();
-        });
+        try {
+          speak(reply, () => {
+            if (voiceMode) startListening();
+          });
+        } catch {
+          // Silently ignore speech errors
+        }
         setLoading(false);
         return;
       }
@@ -149,9 +153,13 @@ export const AIAgent = ({ ingredients, onAddToCart }: Props) => {
       };
       const reply = data.choices[0].message.content;
       setMessages(prev => [...prev, { role: 'agent', text: reply }]);
-      speak(reply, () => {
-        if (voiceMode) startListening();
-      });
+      try {
+        speak(reply, () => {
+          if (voiceMode) startListening();
+        });
+      } catch {
+        // Silently ignore speech errors
+      }
     } catch {
       setMessages(prev => [...prev, { role: 'agent', text: 'Something went wrong, please try again.' }]);
     } finally {
