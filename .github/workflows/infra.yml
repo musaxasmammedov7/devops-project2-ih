@@ -53,6 +53,81 @@ jobs:
           -backend-config="container_name=tfstate" \
           -backend-config="key=prod.terraform.tfstate"
 
+    - name: Import Existing Azure Resources
+      run: |
+        set +e
+
+        SUBSCRIPTION_ID="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+        RESOURCE_GROUP="musa-project2-rg"
+        PREFIX="burger"
+        DB_NAME="burgerbuilder-group22"
+
+        import_if_exists() {
+          local address="$1"
+          local resource_id="$2"
+
+          terraform state show "$address" >/dev/null 2>&1
+          if [ $? -eq 0 ]; then
+            echo "Already in state: $address"
+            return 0
+          fi
+
+          az resource show --ids "$resource_id" >/dev/null 2>&1
+          if [ $? -ne 0 ]; then
+            echo "Not found in Azure, skipping: $resource_id"
+            return 0
+          fi
+
+          echo "Importing $address"
+          terraform import "$address" "$resource_id" || true
+        }
+
+        BASE="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}"
+
+        import_if_exists 'azurerm_public_ip.appgw_pip' "${BASE}/providers/Microsoft.Network/publicIPAddresses/${PREFIX}-appgw-pip"
+        import_if_exists 'azurerm_key_vault.appgw' "${BASE}/providers/Microsoft.KeyVault/vaults/${PREFIX}appgwkv"
+        import_if_exists 'azurerm_user_assigned_identity.appgw' "${BASE}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/${PREFIX}-appgw-identity"
+
+        import_if_exists 'module.networking.azurerm_virtual_network.vnet' "${BASE}/providers/Microsoft.Network/virtualNetworks/${PREFIX}-vnet"
+        import_if_exists 'module.networking.azurerm_subnet.appgw' "${BASE}/providers/Microsoft.Network/virtualNetworks/${PREFIX}-vnet/subnets/snet-appgw"
+        import_if_exists 'module.networking.azurerm_subnet.fe' "${BASE}/providers/Microsoft.Network/virtualNetworks/${PREFIX}-vnet/subnets/snet-fe-musa"
+        import_if_exists 'module.networking.azurerm_subnet.be' "${BASE}/providers/Microsoft.Network/virtualNetworks/${PREFIX}-vnet/subnets/snet-be-musa"
+        import_if_exists 'module.networking.azurerm_subnet.pep' "${BASE}/providers/Microsoft.Network/virtualNetworks/${PREFIX}-vnet/subnets/snet-pep"
+        import_if_exists 'module.networking.azurerm_subnet.ops' "${BASE}/providers/Microsoft.Network/virtualNetworks/${PREFIX}-vnet/subnets/snet-ops"
+        import_if_exists 'module.networking.azurerm_network_security_group.appgw' "${BASE}/providers/Microsoft.Network/networkSecurityGroups/${PREFIX}-nsg-appgw"
+        import_if_exists 'module.networking.azurerm_network_security_group.ops' "${BASE}/providers/Microsoft.Network/networkSecurityGroups/${PREFIX}-nsg-ops"
+        import_if_exists 'module.networking.azurerm_network_security_group.fe' "${BASE}/providers/Microsoft.Network/networkSecurityGroups/${PREFIX}-nsg-fe-musa"
+        import_if_exists 'module.networking.azurerm_network_security_group.be' "${BASE}/providers/Microsoft.Network/networkSecurityGroups/${PREFIX}-nsg-be-musa"
+        import_if_exists 'module.networking.azurerm_subnet_network_security_group_association.appgw' "${BASE}/providers/Microsoft.Network/virtualNetworks/${PREFIX}-vnet/subnets/snet-appgw"
+        import_if_exists 'module.networking.azurerm_subnet_network_security_group_association.ops' "${BASE}/providers/Microsoft.Network/virtualNetworks/${PREFIX}-vnet/subnets/snet-ops"
+        import_if_exists 'module.networking.azurerm_subnet_network_security_group_association.fe' "${BASE}/providers/Microsoft.Network/virtualNetworks/${PREFIX}-vnet/subnets/snet-fe-musa"
+        import_if_exists 'module.networking.azurerm_subnet_network_security_group_association.be' "${BASE}/providers/Microsoft.Network/virtualNetworks/${PREFIX}-vnet/subnets/snet-be-musa"
+
+        import_if_exists 'module.app_gateway.azurerm_web_application_firewall_policy.waf' "${BASE}/providers/Microsoft.Network/applicationGatewayWebApplicationFirewallPolicies/${PREFIX}-wafpolicy"
+        import_if_exists 'module.app_gateway.azurerm_application_gateway.appgw' "${BASE}/providers/Microsoft.Network/applicationGateways/${PREFIX}-appgw"
+
+        import_if_exists 'module.database.azurerm_mssql_server.sql' "${BASE}/providers/Microsoft.Sql/servers/${PREFIX}-sqlserver"
+        import_if_exists 'module.database.azurerm_mssql_database.db' "${BASE}/providers/Microsoft.Sql/servers/${PREFIX}-sqlserver/databases/${DB_NAME}"
+        import_if_exists 'module.database.azurerm_private_dns_zone.sql_dns_zone' "${BASE}/providers/Microsoft.Network/privateDnsZones/privatelink.database.windows.net"
+        import_if_exists 'module.database.azurerm_private_dns_zone_virtual_network_link.vnet_link' "${BASE}/providers/Microsoft.Network/privateDnsZones/privatelink.database.windows.net/virtualNetworkLinks/${PREFIX}-sql-vnet-link"
+        import_if_exists 'module.database.azurerm_private_endpoint.sql_pe' "${BASE}/providers/Microsoft.Network/privateEndpoints/${PREFIX}-sql-pe"
+
+        import_if_exists 'module.vmss_fe.azurerm_linux_virtual_machine_scale_set.vmss' "${BASE}/providers/Microsoft.Compute/virtualMachineScaleSets/${PREFIX}-vmss-fe-musa"
+        import_if_exists 'module.vmss_fe.azurerm_monitor_autoscale_setting.vmss' "${BASE}/providers/Microsoft.Insights/autoscaleSettings/${PREFIX}-autoscale-fe-musa"
+        import_if_exists 'module.vmss_be.azurerm_linux_virtual_machine_scale_set.vmss' "${BASE}/providers/Microsoft.Compute/virtualMachineScaleSets/${PREFIX}-vmss-be-musa"
+        import_if_exists 'module.vmss_be.azurerm_monitor_autoscale_setting.vmss' "${BASE}/providers/Microsoft.Insights/autoscaleSettings/${PREFIX}-autoscale-be-musa"
+
+        import_if_exists 'module.sonarqube_vm.azurerm_public_ip.pip' "${BASE}/providers/Microsoft.Network/publicIPAddresses/${PREFIX}-sonar-pip"
+        import_if_exists 'module.sonarqube_vm.azurerm_network_interface.nic' "${BASE}/providers/Microsoft.Network/networkInterfaces/${PREFIX}-sonar-nic"
+        import_if_exists 'module.sonarqube_vm.azurerm_linux_virtual_machine.vm' "${BASE}/providers/Microsoft.Compute/virtualMachines/${PREFIX}-sonar-vm"
+
+        import_if_exists 'module.monitoring.azurerm_log_analytics_workspace.law' "${BASE}/providers/Microsoft.OperationalInsights/workspaces/${PREFIX}-law"
+        import_if_exists 'module.monitoring.azurerm_application_insights.appinsights' "${BASE}/providers/Microsoft.Insights/components/${PREFIX}-appinsights"
+        import_if_exists 'module.monitoring.azurerm_monitor_action_group.ag' "${BASE}/providers/Microsoft.Insights/actionGroups/${PREFIX}-actiongroup"
+        import_if_exists 'module.monitoring.azurerm_monitor_metric_alert.appgw_health' "${BASE}/providers/Microsoft.Insights/metricAlerts/${PREFIX}-alert-appgw-health"
+        import_if_exists 'module.monitoring.azurerm_monitor_metric_alert.vmss_fe_cpu' "${BASE}/providers/Microsoft.Insights/metricAlerts/${PREFIX}-alert-vmss-fe-cpu-musa"
+        import_if_exists 'module.monitoring.azurerm_monitor_metric_alert.vmss_be_cpu' "${BASE}/providers/Microsoft.Insights/metricAlerts/${PREFIX}-alert-vmss-be-cpu-musa"
+
     - name: Terraform Format
       run: terraform fmt -check
 
