@@ -1,12 +1,11 @@
-resource "azurerm_resource_group" "rg" {
-  name     = "musa-project2-rg"
-  location = var.location
+data "azurerm_resource_group" "rg" {
+  name = "musa-project2-rg"
 }
 
 resource "azurerm_public_ip" "appgw_pip" {
   name                = "${var.prefix}-appgw-pip"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
+  resource_group_name = data.azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.rg.location
   allocation_method   = "Static"
   sku                 = "Standard"
 }
@@ -15,8 +14,8 @@ data "azurerm_client_config" "current" {}
 
 resource "azurerm_key_vault" "appgw" {
   name                            = substr(replace(lower("${var.prefix}-appgw-kv"), "-", ""), 0, 24)
-  location                        = azurerm_resource_group.rg.location
-  resource_group_name             = azurerm_resource_group.rg.name
+  location                        = data.azurerm_resource_group.rg.location
+  resource_group_name             = data.azurerm_resource_group.rg.name
   tenant_id                       = data.azurerm_client_config.current.tenant_id
   sku_name                        = "standard"
   soft_delete_retention_days      = 7
@@ -28,8 +27,8 @@ resource "azurerm_key_vault" "appgw" {
 
 resource "azurerm_user_assigned_identity" "appgw" {
   name                = "${var.prefix}-appgw-identity"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
+  resource_group_name = data.azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.rg.location
 }
 
 resource "azurerm_key_vault_access_policy" "terraform_certificate" {
@@ -53,8 +52,8 @@ resource "azurerm_key_vault_access_policy" "appgw_certificate" {
 module "networking" {
   source              = "./modules/networking"
   prefix              = var.prefix
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.rg.location
+  resource_group_name = data.azurerm_resource_group.rg.name
   vnet_address_space  = var.vnet_address_space
   appgw_subnet_prefix = var.appgw_subnet_prefix
   fe_subnet_prefix    = var.fe_subnet_prefix
@@ -66,8 +65,8 @@ module "networking" {
 module "database" {
   source              = "./modules/database"
   prefix              = var.prefix
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.rg.location
+  resource_group_name = data.azurerm_resource_group.rg.name
   vnet_id             = module.networking.vnet_id
   pep_subnet_id       = module.networking.pep_subnet_id
   sql_admin_username  = var.sql_admin_username
@@ -79,8 +78,8 @@ module "database" {
 module "app_gateway" {
   source                                    = "./modules/app_gateway"
   prefix                                    = var.prefix
-  location                                  = azurerm_resource_group.rg.location
-  resource_group_name                       = azurerm_resource_group.rg.name
+  location                                  = data.azurerm_resource_group.rg.location
+  resource_group_name                       = data.azurerm_resource_group.rg.name
   appgw_subnet_id                           = module.networking.appgw_subnet_id
   appgw_public_ip_id                        = azurerm_public_ip.appgw_pip.id
   appgw_identity_id                         = azurerm_user_assigned_identity.appgw.id
@@ -94,8 +93,8 @@ module "vmss_fe" {
   source                 = "./modules/compute"
   prefix                 = var.prefix
   tier                   = "fe"
-  location               = azurerm_resource_group.rg.location
-  resource_group_name    = azurerm_resource_group.rg.name
+  location               = data.azurerm_resource_group.rg.location
+  resource_group_name    = data.azurerm_resource_group.rg.name
   subnet_id              = module.networking.fe_subnet_id
   appgw_backend_pool_ids = [module.app_gateway.backend_address_pool_fe_id]
   ssh_public_key         = var.vm_ssh_public_key
@@ -114,8 +113,8 @@ module "vmss_be" {
   source                 = "./modules/compute"
   prefix                 = var.prefix
   tier                   = "be"
-  location               = azurerm_resource_group.rg.location
-  resource_group_name    = azurerm_resource_group.rg.name
+  location               = data.azurerm_resource_group.rg.location
+  resource_group_name    = data.azurerm_resource_group.rg.name
   subnet_id              = module.networking.be_subnet_id
   appgw_backend_pool_ids = [module.app_gateway.backend_address_pool_be_id]
   ssh_public_key         = var.vm_ssh_public_key
@@ -133,8 +132,8 @@ module "vmss_be" {
 module "sonarqube_vm" {
   source              = "./modules/sonarqube_vm"
   prefix              = var.prefix
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.rg.location
+  resource_group_name = data.azurerm_resource_group.rg.name
   ops_subnet_id       = module.networking.ops_subnet_id
   vm_ssh_public_key   = var.vm_ssh_public_key
 }
@@ -143,8 +142,8 @@ module "sonarqube_vm" {
 module "monitoring" {
   source              = "./modules/monitoring"
   prefix              = var.prefix
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.rg.location
+  resource_group_name = data.azurerm_resource_group.rg.name
   appgw_id            = module.app_gateway.appgw_id
   vmss_fe_id          = module.vmss_fe.vmss_id
   vmss_be_id          = module.vmss_be.vmss_id
