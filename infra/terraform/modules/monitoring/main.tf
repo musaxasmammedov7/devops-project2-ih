@@ -43,7 +43,7 @@ resource "azurerm_monitor_action_group" "ag" {
 # Azure Function App for beautiful Telegram notifications
 resource "azurerm_storage_account" "telegram_formatter_sa" {
   count                    = var.telegram_bot_token != "" && var.telegram_chat_id != "" ? 1 : 0
-  name                     = "${var.prefix}telegramformattersa"
+  name                     = "${var.prefix}tgformattersa"
   resource_group_name      = var.resource_group_name
   location                 = var.location
   account_tier             = "Standard"
@@ -91,6 +91,7 @@ data "archive_file" "telegram_formatter_function" {
   type        = "zip"
   source_dir  = "${path.module}/../../azure-functions/telegram-formatter"
   output_path = "${path.module}/../../azure-functions/telegram-formatter.zip"
+  excludes    = []
 }
 
 # 1. App Gateway Backend Health Alert
