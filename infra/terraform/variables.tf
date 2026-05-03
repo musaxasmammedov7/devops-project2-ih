@@ -72,6 +72,16 @@ variable "app_service_sku" {
   default     = "P1v3" # P1v3 - это один из Premium планов (2 ядра, 8GB RAM)
 }
 
+variable "custom_domain_name" {
+  type    = string
+  default = ""
+}
+
+variable "appgw_ssl_certificate_key_vault_secret_id" {
+  type    = string
+  default = ""
+}
+
 
 variable "vm_admin_username" {
   description = "Admin username for SonarQube VM"

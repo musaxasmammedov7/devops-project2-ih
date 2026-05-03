@@ -11,6 +11,45 @@ resource "azurerm_public_ip" "appgw_pip" {
   sku                 = "Standard"
 }
 
+data "azurerm_client_config" "current" {}
+
+resource "azurerm_key_vault" "appgw" {
+  name                            = substr(replace(lower("${var.prefix}-appgw-kv"), "-", ""), 0, 24)
+  location                        = azurerm_resource_group.rg.location
+  resource_group_name             = azurerm_resource_group.rg.name
+  tenant_id                       = data.azurerm_client_config.current.tenant_id
+  sku_name                        = "standard"
+  soft_delete_retention_days      = 7
+  purge_protection_enabled        = false
+  enabled_for_deployment          = true
+  enabled_for_disk_encryption     = true
+  enabled_for_template_deployment = true
+}
+
+resource "azurerm_user_assigned_identity" "appgw" {
+  name                = "${var.prefix}-appgw-identity"
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+}
+
+resource "azurerm_key_vault_access_policy" "terraform_certificate" {
+  key_vault_id = azurerm_key_vault.appgw.id
+  tenant_id    = data.azurerm_client_config.current.tenant_id
+  object_id    = data.azurerm_client_config.current.object_id
+
+  certificate_permissions = ["Create", "Delete", "Get", "Import", "List", "Update"]
+  key_permissions         = ["Create", "Delete", "Get", "Import", "List", "Update"]
+  secret_permissions      = ["Delete", "Get", "List", "Set"]
+}
+
+resource "azurerm_key_vault_access_policy" "appgw_certificate" {
+  key_vault_id = azurerm_key_vault.appgw.id
+  tenant_id    = data.azurerm_client_config.current.tenant_id
+  object_id    = azurerm_user_assigned_identity.appgw.principal_id
+
+  secret_permissions = ["Get"]
+}
+
 module "networking" {
   source              = "./modules/networking"
   prefix              = var.prefix
@@ -38,12 +77,17 @@ module "database" {
 
 
 module "app_gateway" {
-  source              = "./modules/app_gateway"
-  prefix              = var.prefix
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  appgw_subnet_id     = module.networking.appgw_subnet_id
-  appgw_public_ip_id  = azurerm_public_ip.appgw_pip.id
+  source                                    = "./modules/app_gateway"
+  prefix                                    = var.prefix
+  location                                  = azurerm_resource_group.rg.location
+  resource_group_name                       = azurerm_resource_group.rg.name
+  appgw_subnet_id                           = module.networking.appgw_subnet_id
+  appgw_public_ip_id                        = azurerm_public_ip.appgw_pip.id
+  appgw_identity_id                         = azurerm_user_assigned_identity.appgw.id
+  custom_domain_name                        = var.custom_domain_name
+  appgw_ssl_certificate_key_vault_secret_id = var.appgw_ssl_certificate_key_vault_secret_id
+
+  depends_on = [azurerm_key_vault_access_policy.appgw_certificate]
 }
 
 module "vmss_fe" {

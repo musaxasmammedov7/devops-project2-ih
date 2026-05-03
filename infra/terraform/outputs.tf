@@ -1,6 +1,16 @@
 output "application_url" {
   description = "The public URL to access the application via App Gateway"
-  value       = "http://${azurerm_public_ip.appgw_pip.ip_address}"
+  value       = var.custom_domain_name != "" && var.appgw_ssl_certificate_key_vault_secret_id != "" ? "https://${var.custom_domain_name}" : "http://${azurerm_public_ip.appgw_pip.ip_address}"
+}
+
+output "app_gateway_public_ip" {
+  description = "The public IP address of Application Gateway"
+  value       = azurerm_public_ip.appgw_pip.ip_address
+}
+
+output "appgw_key_vault_name" {
+  description = "The Key Vault name used for the Application Gateway TLS certificate"
+  value       = azurerm_key_vault.appgw.name
 }
 
 output "sonarqube_url" {

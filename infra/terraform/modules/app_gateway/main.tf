@@ -1,14 +1,19 @@
 
 locals {
-  backend_address_pool_name_fe   = "${var.prefix}-beap-fe"
-  backend_address_pool_name_be   = "${var.prefix}-beap-be"
-  frontend_port_name             = "${var.prefix}-feport"
-  frontend_ip_configuration_name = "${var.prefix}-feip"
-  http_setting_name_fe           = "${var.prefix}-be-htst-fe"
-  http_setting_name_be           = "${var.prefix}-be-htst-be"
-  listener_name                  = "${var.prefix}-httplstn"
-  request_routing_rule_name      = "${var.prefix}-rqrt"
-  url_path_map_name              = "${var.prefix}-urlpathmap"
+  backend_address_pool_name_fe    = "${var.prefix}-beap-fe"
+  backend_address_pool_name_be    = "${var.prefix}-beap-be"
+  frontend_port_name              = "${var.prefix}-feport"
+  frontend_ip_configuration_name  = "${var.prefix}-feip"
+  http_setting_name_fe            = "${var.prefix}-be-htst-fe"
+  http_setting_name_be            = "${var.prefix}-be-htst-be"
+  listener_name                   = "${var.prefix}-httplstn"
+  https_listener_name             = "${var.prefix}-httpslstn"
+  request_routing_rule_name       = "${var.prefix}-rqrt"
+  https_request_routing_rule_name = "${var.prefix}-https-rqrt"
+  url_path_map_name               = "${var.prefix}-urlpathmap"
+  https_url_path_map_name         = "${var.prefix}-https-urlpathmap"
+  ssl_certificate_name            = "${var.prefix}-appgw-cert"
+  https_enabled                   = var.custom_domain_name != "" && var.appgw_ssl_certificate_key_vault_secret_id != ""
 }
 
 resource "azurerm_application_gateway" "appgw" {
@@ -22,6 +27,11 @@ resource "azurerm_application_gateway" "appgw" {
     capacity = 2
   }
 
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [var.appgw_identity_id]
+  }
+
   gateway_ip_configuration {
     name      = "my-gateway-ip-configuration"
     subnet_id = var.appgw_subnet_id
@@ -30,6 +40,15 @@ resource "azurerm_application_gateway" "appgw" {
   frontend_port {
     name = local.frontend_port_name
     port = 80
+  }
+
+  dynamic "frontend_port" {
+    for_each = local.https_enabled ? [1] : []
+
+    content {
+      name = "${local.frontend_port_name}-https"
+      port = 443
+    }
   }
 
   frontend_ip_configuration {
@@ -98,6 +117,28 @@ resource "azurerm_application_gateway" "appgw" {
     protocol                       = "Http"
   }
 
+  dynamic "ssl_certificate" {
+    for_each = local.https_enabled ? [1] : []
+
+    content {
+      name                = local.ssl_certificate_name
+      key_vault_secret_id = var.appgw_ssl_certificate_key_vault_secret_id
+    }
+  }
+
+  dynamic "http_listener" {
+    for_each = local.https_enabled ? [1] : []
+
+    content {
+      name                           = local.https_listener_name
+      frontend_ip_configuration_name = local.frontend_ip_configuration_name
+      frontend_port_name             = "${local.frontend_port_name}-https"
+      protocol                       = "Https"
+      host_name                      = var.custom_domain_name
+      ssl_certificate_name           = local.ssl_certificate_name
+    }
+  }
+
   url_path_map {
     name                               = local.url_path_map_name
     default_backend_address_pool_name  = local.backend_address_pool_name_fe
@@ -117,6 +158,35 @@ resource "azurerm_application_gateway" "appgw" {
     http_listener_name = local.listener_name
     url_path_map_name  = local.url_path_map_name
     priority           = 100
+  }
+
+  dynamic "url_path_map" {
+    for_each = local.https_enabled ? [1] : []
+
+    content {
+      name                               = local.https_url_path_map_name
+      default_backend_address_pool_name  = local.backend_address_pool_name_fe
+      default_backend_http_settings_name = local.http_setting_name_fe
+
+      path_rule {
+        name                       = "api-rule-https"
+        paths                      = ["/api/*"]
+        backend_address_pool_name  = local.backend_address_pool_name_be
+        backend_http_settings_name = local.http_setting_name_be
+      }
+    }
+  }
+
+  dynamic "request_routing_rule" {
+    for_each = local.https_enabled ? [1] : []
+
+    content {
+      name               = local.https_request_routing_rule_name
+      rule_type          = "PathBasedRouting"
+      http_listener_name = local.https_listener_name
+      url_path_map_name  = local.https_url_path_map_name
+      priority           = 110
+    }
   }
 
   ssl_policy {
