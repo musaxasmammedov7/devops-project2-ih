@@ -5,6 +5,7 @@ import { getIngredients } from '../../services/api';
 import BurgerPreview from './BurgerPreview';
 import IngredientList from '../Ingredients/IngredientList';
 import CalorieCounter from '../CalorieCounter/CalorieCounter';
+import { AIAgent } from '../AIAgent/AIAgent';
 import { getCalories } from '../../utils/calorieData';
 import './BurgerBuilder.css';
 
@@ -170,6 +171,14 @@ const BurgerBuilder: React.FC = () => {
           </div>
         </div>
       </div>
+      
+      <AIAgent 
+        ingredients={ingredients.map(i => ({ id: i.id, name: i.name }))}
+        onAddToCart={(id) => {
+          const ingredient = getIngredientById(id);
+          if (ingredient) addLayer(id);
+        }}
+      />
     </div>
   );
 };

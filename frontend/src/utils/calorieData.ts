@@ -36,3 +36,25 @@ export const getCalories = (ingredientName: string): number => {
   }
   return 50; // default
 };
+
+export const recommendBurgerForCalories = (
+  ingredients: { id: number; name: string }[],
+  targetCalories: number
+): { id: number; name: string; calories: number }[] => {
+  const sorted = ingredients
+    .map(ing => ({ ...ing, calories: getCalories(ing.name) }))
+    .sort((a, b) => b.calories - a.calories);
+
+  const result: { id: number; name: string; calories: number }[] = [];
+  let totalCalories = 0;
+
+  for (const ing of sorted) {
+    if (totalCalories + ing.calories <= targetCalories * 1.2) {
+      result.push(ing);
+      totalCalories += ing.calories;
+    }
+    if (totalCalories >= targetCalories) break;
+  }
+
+  return result;
+};

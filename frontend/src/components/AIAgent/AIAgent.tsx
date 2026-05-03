@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import * as SpeechSDK from 'microsoft-cognitiveservices-speech-sdk';
+import { getCalories, recommendBurgerForCalories } from '../../utils/calorieData';
 
 interface Message {
   role: 'user' | 'agent';
@@ -11,10 +12,10 @@ interface Props {
   onAddToCart: (ingredientId: number) => void;
 }
 
-export const AIAgent = ({ ingredients }: Props) => {
+export const AIAgent = ({ ingredients, onAddToCart }: Props) => {
   const [open, setOpen] = useState(true);
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'agent', text: 'Hello! I am Burger AI 🍔 Say your order or type below!' }
+    { role: 'agent', text: 'Hello! I am Burger AI 🍔 I can help you order burgers or recommend ingredients based on calories! Try saying "I need a burger with 500 calories"' }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -44,7 +45,7 @@ export const AIAgent = ({ ingredients }: Props) => {
     recognizerRef.current = recognizer;
     setListening(true);
 
-    recognizer.recognizeOnceAsync(result => {
+    recognizer.recognizeOnceAsync((result: SpeechSDK.SpeechRecognitionResult) => {
       if (result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
         setInput(result.text);
         sendMessage(result.text);
@@ -64,12 +65,33 @@ export const AIAgent = ({ ingredients }: Props) => {
   useEffect(() => {
     if (voiceMode) {
       setTimeout(() => {
-        speak('Hello! I am Burger AI. Say your order and I will build it for you!', () => {
+        speak('Hello! I am Burger AI. I can help you order burgers or recommend ingredients based on calories!', () => {
           startListening();
         });
       }, 1000);
     }
   }, []);
+
+  const extractCaloriesFromText = (text: string): number | null => {
+    const calorieMatch = text.match(/(\d+)\s*(?:calories?|kcal|cal)/i);
+    return calorieMatch ? parseInt(calorieMatch[1]) : null;
+  };
+
+  const handleCalorieRequest = (targetCalories: number): string => {
+    const recommended = recommendBurgerForCalories(ingredients, targetCalories);
+    
+    if (recommended.length === 0) {
+      return `Sorry, I couldn't find ingredients to make a ${targetCalories} calorie burger. Try a different calorie target.`;
+    }
+
+    const totalCalories = recommended.reduce((sum: number, ing: { calories: number }) => sum + ing.calories, 0);
+    const ingredientList = recommended.map((ing: { name: string; calories: number }) => `${ing.name} (${ing.calories} cal)`).join(', ');
+
+    // Auto-add ingredients to cart
+    recommended.forEach((ing: { id: number }) => onAddToCart(ing.id));
+
+    return `Great! For ${targetCalories} calories, I recommend: ${ingredientList}. Total: ${totalCalories} calories. I've added these ingredients to your burger! 🍔`;
+  };
 
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
@@ -79,12 +101,25 @@ export const AIAgent = ({ ingredients }: Props) => {
     setListening(false);
 
     try {
+      // Check if user is asking about calories
+      const calorieTarget = extractCaloriesFromText(text);
+      
+      if (calorieTarget) {
+        const reply = handleCalorieRequest(calorieTarget);
+        setMessages(prev => [...prev, { role: 'agent', text: reply }]);
+        speak(reply, () => {
+          if (voiceMode) startListening();
+        });
+        setLoading(false);
+        return;
+      }
+
       const endpoint = import.meta.env.VITE_AZURE_OPENAI_ENDPOINT;
       const apiKey = import.meta.env.VITE_AZURE_OPENAI_KEY;
       const url = `${endpoint}openai/deployments/gpt-4o-mini/chat/completions?api-version=2024-02-15-preview`;
 
       const menuList = ingredients.length > 0
-        ? ingredients.map(i => i.name).join(', ')
+        ? ingredients.map(i => `${i.name} (${getCalories(i.name)} cal)`).join(', ')
         : 'classic burgers, veggie burgers, cheese burgers, chicken burgers, fries, drinks';
 
       const res = await fetch(url, {
@@ -94,13 +129,14 @@ export const AIAgent = ({ ingredients }: Props) => {
           'api-key': apiKey,
         },
         body: JSON.stringify({
-          max_tokens: 200,
+          max_tokens: 250,
           messages: [
             {
               role: 'system',
               content: `You are a friendly AI assistant for Burger Builder restaurant. 
               Help customers choose and build their perfect burger order. 
-              Available menu items: ${menuList}. 
+              Available menu items with calories: ${menuList}. 
+              If user asks about calories, suggest specific ingredients that match their request.
               Keep responses short, friendly and helpful. Max 2-3 sentences.`
             },
             { role: 'user', content: text }
@@ -182,7 +218,7 @@ export const AIAgent = ({ ingredients }: Props) => {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && sendMessage(input)}
-              placeholder="E.g: two large burgers..."
+              placeholder="E.g: I need 500 calories..."
               style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '13px', outline: 'none' }}
             />
             <button
