@@ -149,4 +149,7 @@ module "monitoring" {
   vmss_be_id          = module.vmss_be.vmss_id
   sql_server_id       = module.database.sql_server_id
   sql_database_id     = "${module.database.sql_server_id}/databases/${module.database.database_name}"
+  telegram_bot_token  = var.telegram_bot_token
+  telegram_chat_id    = var.telegram_chat_id
+  notification_email  = var.notification_email
 }

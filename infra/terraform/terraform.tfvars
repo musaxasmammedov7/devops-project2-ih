@@ -18,3 +18,8 @@ vm_admin_username = "azureuser"
 
 custom_domain_name                        = "burgergroup2.com"
 appgw_ssl_certificate_key_vault_secret_id = "https://burgerappgwkv.vault.azure.net/secrets/appgw-cert/6d55b9630d7c4786993ac6c7e1702306"
+
+# Notification settings
+# telegram_bot_token and telegram_chat_id should be provided via TF_VAR_... in GitHub Actions
+# notification_email can be set directly here or via TF_VAR_notification_email
+notification_email = "musaxasmammedov77@gmail.com"

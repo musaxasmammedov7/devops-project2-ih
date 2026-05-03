@@ -94,3 +94,23 @@ variable "vm_ssh_public_key" {
   description = "SSH public key for SonarQube VM"
   type        = string
 }
+
+variable "telegram_bot_token" {
+  description = "Telegram bot token for notifications (TF_VAR_telegram_bot_token)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "telegram_chat_id" {
+  description = "Telegram chat ID for notifications (TF_VAR_telegram_chat_id)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "notification_email" {
+  description = "Email address for notifications"
+  type        = string
+  default     = ""
+}

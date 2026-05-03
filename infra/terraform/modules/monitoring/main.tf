@@ -21,7 +21,76 @@ resource "azurerm_monitor_action_group" "ag" {
   resource_group_name = var.resource_group_name
   short_name          = "alerts"
 
-  # Minimal action group to satisfy requirement (you can add email receivers later)
+  # Email receiver
+  dynamic "email_receiver" {
+    for_each = var.notification_email != "" ? [1] : []
+    content {
+      name          = "email-notifications"
+      email_address = var.notification_email
+    }
+  }
+
+  # Telegram webhook receiver (via Azure Function for beautiful formatting)
+  dynamic "webhook_receiver" {
+    for_each = var.telegram_bot_token != "" && var.telegram_chat_id != "" ? [1] : []
+    content {
+      name        = "telegram-notifications"
+      service_uri = "${azurerm_linux_function_app.telegram_notifier.default_hostname}/api/telegram-notifier"
+    }
+  }
+}
+
+# Azure Function App for beautiful Telegram notifications
+resource "azurerm_storage_account" "telegram_notifier_sa" {
+  count                    = var.telegram_bot_token != "" && var.telegram_chat_id != "" ? 1 : 0
+  name                     = "${var.prefix}telegramnotifiersa"
+  resource_group_name      = var.resource_group_name
+  location                 = var.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+}
+
+resource "azurerm_service_plan" "telegram_notifier_asp" {
+  count               = var.telegram_bot_token != "" && var.telegram_chat_id != "" ? 1 : 0
+  name                = "${var.prefix}-telegram-notifier-asp"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  os_type             = "Linux"
+  sku_name            = "B1"
+}
+
+resource "azurerm_linux_function_app" "telegram_notifier" {
+  count               = var.telegram_bot_token != "" && var.telegram_chat_id != "" ? 1 : 0
+  name                = "${var.prefix}-telegram-notifier"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+
+  storage_account_name       = azurerm_storage_account.telegram_notifier_sa[0].name
+  storage_account_access_key = azurerm_storage_account.telegram_notifier_sa[0].primary_access_key
+  service_plan_id            = azurerm_service_plan.telegram_notifier_asp[0].id
+
+  site_config {
+    application_stack {
+      node_version = "18"
+    }
+  }
+
+  app_settings = {
+    FUNCTIONS_WORKER_RUNTIME = "node"
+    TELEGRAM_BOT_TOKEN       = var.telegram_bot_token
+    TELEGRAM_CHAT_ID         = var.telegram_chat_id
+    WEBSITE_RUN_FROM_PACKAGE = "1"
+  }
+
+  zip_deploy_file = data.archive_file.telegram_notifier_function[0].output_path
+}
+
+# Archive function code
+data "archive_file" "telegram_notifier_function" {
+  count       = var.telegram_bot_token != "" && var.telegram_chat_id != "" ? 1 : 0
+  type        = "zip"
+  source_dir  = "${path.module}/../../azure-functions/telegram-notifier"
+  output_path = "${path.module}/../../azure-functions/telegram-notifier.zip"
 }
 
 # 1. App Gateway Backend Health Alert
