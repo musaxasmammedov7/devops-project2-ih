@@ -1,8 +1,0 @@
-{
-  "name": "telegram-formatter",
-  "version": "1.0.0",
-  "description": "Azure Function for beautiful Telegram alert formatting",
-  "main": "index.js",
-  "dependencies": {},
-  "devDependencies": {}
-}

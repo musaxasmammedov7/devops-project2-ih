@@ -30,68 +30,48 @@ resource "azurerm_monitor_action_group" "ag" {
     }
   }
 
-  # Telegram webhook receiver (via Azure Function for beautiful formatting)
+  # Telegram webhook receiver (via Logic App)
   dynamic "webhook_receiver" {
     for_each = var.telegram_bot_token != "" && var.telegram_chat_id != "" ? [1] : []
     content {
       name        = "telegram-notifications"
-      service_uri = "${azurerm_linux_function_app.telegram_formatter.default_hostname}/api/telegram-formatter"
+      service_uri = azurerm_logic_app_workflow.telegram_alert[0].endpoint
     }
   }
 }
 
-# Azure Function App for beautiful Telegram notifications
-resource "azurerm_storage_account" "telegram_formatter_sa" {
-  count                    = var.telegram_bot_token != "" && var.telegram_chat_id != "" ? 1 : 0
-  name                     = "${var.prefix}tgformattersa"
-  resource_group_name      = var.resource_group_name
-  location                 = var.location
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
-}
-
-resource "azurerm_service_plan" "telegram_formatter_asp" {
+# Logic App for beautiful Telegram notifications
+resource "azurerm_logic_app_workflow" "telegram_alert" {
   count               = var.telegram_bot_token != "" && var.telegram_chat_id != "" ? 1 : 0
-  name                = "${var.prefix}-telegram-formatter-asp"
+  name                = "${var.prefix}-telegram-alert"
   resource_group_name = var.resource_group_name
   location            = var.location
-  os_type             = "Linux"
-  sku_name            = "B1"
 }
 
-resource "azurerm_linux_function_app" "telegram_formatter" {
-  count               = var.telegram_bot_token != "" && var.telegram_chat_id != "" ? 1 : 0
-  name                = "${var.prefix}-telegram-formatter"
-  resource_group_name = var.resource_group_name
-  location            = var.location
-
-  storage_account_name       = azurerm_storage_account.telegram_formatter_sa[0].name
-  storage_account_access_key = azurerm_storage_account.telegram_formatter_sa[0].primary_access_key
-  service_plan_id            = azurerm_service_plan.telegram_formatter_asp[0].id
-
-  site_config {
-    application_stack {
-      node_version = "18"
-    }
-  }
-
-  app_settings = {
-    FUNCTIONS_WORKER_RUNTIME = "node"
-    TELEGRAM_BOT_TOKEN       = var.telegram_bot_token
-    TELEGRAM_CHAT_ID         = var.telegram_chat_id
-    WEBSITE_RUN_FROM_PACKAGE = "1"
-  }
-
-  zip_deploy_file = data.archive_file.telegram_formatter_function[0].output_path
+resource "azurerm_logic_app_trigger_http_request" "telegram_alert_trigger" {
+  count        = var.telegram_bot_token != "" && var.telegram_chat_id != "" ? 1 : 0
+  name         = "azure-monitor-trigger"
+  logic_app_id = azurerm_logic_app_workflow.telegram_alert[0].id
+  schema = jsonencode({
+    type       = "object"
+    properties = {}
+  })
 }
 
-# Archive function code
-data "archive_file" "telegram_formatter_function" {
-  count       = var.telegram_bot_token != "" && var.telegram_chat_id != "" ? 1 : 0
-  type        = "zip"
-  source_dir  = "${path.module}/../../azure-functions/telegram-formatter"
-  output_path = "${path.module}/../../azure-functions/telegram-formatter.zip"
-  excludes    = []
+resource "azurerm_logic_app_action_http" "telegram_send" {
+  count        = var.telegram_bot_token != "" && var.telegram_chat_id != "" ? 1 : 0
+  name         = "send-telegram"
+  logic_app_id = azurerm_logic_app_workflow.telegram_alert[0].id
+  method       = "POST"
+  uri          = "https://api.telegram.org/bot${var.telegram_bot_token}/sendMessage"
+  body = jsonencode({
+    chat_id    = var.telegram_chat_id
+    text       = "🚨 *Azure Alert Triggered* 🚨\n\n📊 *Alert Details:*\n━━━━━━━━━━━━━━━━━━━━\n🔔 *Status:* Fired\n⏰ *Time:* @{triggerBody()?['data']?['firedDateTime']}\n🏷️ *Resource:* @{triggerBody()?['data']?['resourceName']}\n📦 *Resource Type:* @{triggerBody()?['data']?['resourceType']}\n👥 *Resource Group:* @{triggerBody()?['data']?['resourceGroupName']}\n📝 *Reason:* @{triggerBody()?['data']?['condition']?['allOf']?[0]?['metricName']} is @{triggerBody()?['data']?['condition']?['allOf']?[0]?['operator']} @{triggerBody()?['data']?['condition']?['allOf']?[0]?['threshold']} (current: @{triggerBody()?['data']?['condition']?['allOf']?[0]?['metricValue']})\n━━━━━━━━━━━━━━━━━━━━\n\n🔗 *View in Azure Portal:*\nhttps://portal.azure.com/#@/resource@{triggerBody()?['data']?['resourceId']}\n━━━━━━━━━━━━━━━━━━━━\n\n🤖 *Powered by Azure Monitor & Terraform*"
+    parse_mode = "Markdown"
+  })
+  headers = {
+    Content-Type = "application/json"
+  }
 }
 
 # 1. App Gateway Backend Health Alert
