@@ -23,3 +23,6 @@ appgw_ssl_certificate_key_vault_secret_id = "https://burgerappgwkv.vault.azure.n
 # telegram_bot_token and telegram_chat_id should be provided via TF_VAR_... in GitHub Actions
 # notification_email can be set directly here or via TF_VAR_notification_email
 notification_email = "musaxasmammedov77@gmail.com"
+# Temporarily add Telegram secrets for testing (remove after GitHub Secrets are configured)
+# telegram_bot_token = "your-bot-token-here"
+# telegram_chat_id = "your-chat-id-here"
