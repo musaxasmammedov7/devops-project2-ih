@@ -15,3 +15,6 @@ vm_admin_username = "azureuser"
 # NOTE: Sensitive variables like sql_admin_username, sql_admin_password, and vm_ssh_public_key 
 # should be provided via environment variables (TF_VAR_...) in GitHub Actions 
 # or via a secure terraform.tfvars that is NOT committed to git.
+
+custom_domain_name                        = "burgergroup2.com"
+appgw_ssl_certificate_key_vault_secret_id = "https://burgerappgwkv.vault.azure.net/secrets/appgw-cert"
