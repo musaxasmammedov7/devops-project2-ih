@@ -9,6 +9,7 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   
   const { login, register } = useAuth();
   const navigate = useNavigate();
@@ -19,18 +20,19 @@ const Login: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
 
     if (isRegister) {
-      const success = register(email, password, name);
-      if (success) {
+      const isSuccess = register(email, password, name);
+      if (isSuccess) {
         setIsRegister(false);
-        setError('Registration successful! Please login.');
+        setSuccess('Registration successful! Please login.');
       } else {
         setError('User already exists!');
       }
     } else {
-      const success = login(email, password);
-      if (success) {
+      const isSuccess = login(email, password);
+      if (isSuccess) {
         navigate(from, { replace: true });
       } else {
         setError('Invalid email or password!');
@@ -48,6 +50,7 @@ const Login: React.FC = () => {
         </div>
 
         {error && <div className="login-error">{error}</div>}
+        {success && <div className="login-success">{success}</div>}
 
         <form onSubmit={handleSubmit} className="login-form">
           {isRegister && (
@@ -98,6 +101,7 @@ const Login: React.FC = () => {
               onClick={() => {
                 setIsRegister(!isRegister);
                 setError('');
+                setSuccess('');
               }}
             >
               {isRegister ? 'Login' : 'Register now'}

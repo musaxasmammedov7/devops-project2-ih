@@ -343,3 +343,25 @@
     padding: 6px 12px;
   }
 }
+
+.user-email-badge {
+  display: inline-block;
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+  padding: 5px 15px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.order-card.glass-card {
+  margin-bottom: 25px;
+  border-radius: 20px;
+  padding: 25px;
+  transition: transform 0.3s ease;
+}
+
+.order-card.glass-card:hover {
+  transform: translateY(-5px);
+}
