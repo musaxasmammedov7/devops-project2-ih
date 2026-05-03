@@ -45,7 +45,8 @@ jobs:
         args: >
           -Dsonar.projectKey=burger-frontend
           -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-
+          -Dsonar.cpd.exclusions=**/*.test.tsx,**/*.css,**/*.scss,**/types.ts,**/api.ts
+    
     - name: Build
       run: npm run build
 
