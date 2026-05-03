@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Ingredient } from '../../types';
+import { getCategoryIcon } from '../../utils/formatters';
 import './IngredientCard.css';
 
 interface IngredientCardProps {
@@ -18,15 +19,4 @@ const IngredientCard: React.FC<IngredientCardProps> = ({ ingredient, onAdd }) =>
   );
 };
 
-const getCategoryIcon = (category: string): string => {
-  const icons: Record<string, string> = {
-    buns: '🍞',
-    patties: '🥩',
-    toppings: '🥬',
-    sauces: '🧂',
-  };
-  return icons[category] || '🍔';
-};
-
 export default IngredientCard;
-

@@ -7,6 +7,9 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
   <BurgerBuilderProvider>{children}</BurgerBuilderProvider>
 );
 
+// Shared setup function to reduce duplication
+const setup = () => renderHook(() => useBurgerBuilder(), { wrapper });
+
 describe('BurgerBuilderContext', () => {
   const mockIngredients: Ingredient[] = [
     {
@@ -33,12 +36,12 @@ describe('BurgerBuilderContext', () => {
   ];
 
   it('should initialize with empty layers', () => {
-    const { result } = renderHook(() => useBurgerBuilder(), { wrapper });
+    const { result } = setup();
     expect(result.current.layers).toEqual([]);
   });
 
   it('should set ingredients', () => {
-    const { result } = renderHook(() => useBurgerBuilder(), { wrapper });
+    const { result } = setup();
     
     act(() => {
       result.current.setIngredients(mockIngredients);
@@ -48,7 +51,7 @@ describe('BurgerBuilderContext', () => {
   });
 
   it('should add a new layer', () => {
-    const { result } = renderHook(() => useBurgerBuilder(), { wrapper });
+    const { result } = setup();
     
     act(() => {
       result.current.addLayer(1);
@@ -59,7 +62,7 @@ describe('BurgerBuilderContext', () => {
   });
 
   it('should increment quantity when adding existing layer', () => {
-    const { result } = renderHook(() => useBurgerBuilder(), { wrapper });
+    const { result } = setup();
     
     act(() => {
       result.current.addLayer(1);
@@ -71,7 +74,7 @@ describe('BurgerBuilderContext', () => {
   });
 
   it('should add different ingredients as separate layers', () => {
-    const { result } = renderHook(() => useBurgerBuilder(), { wrapper });
+    const { result } = setup();
     
     act(() => {
       result.current.addLayer(1);
@@ -82,7 +85,7 @@ describe('BurgerBuilderContext', () => {
   });
 
   it('should decrement quantity when removing layer', () => {
-    const { result } = renderHook(() => useBurgerBuilder(), { wrapper });
+    const { result } = setup();
     
     act(() => {
       result.current.addLayer(1);
@@ -97,7 +100,7 @@ describe('BurgerBuilderContext', () => {
   });
 
   it('should remove layer completely when quantity reaches 0', () => {
-    const { result } = renderHook(() => useBurgerBuilder(), { wrapper });
+    const { result } = setup();
     
     act(() => {
       result.current.addLayer(1);
@@ -111,7 +114,7 @@ describe('BurgerBuilderContext', () => {
   });
 
   it('should clear all layers', () => {
-    const { result } = renderHook(() => useBurgerBuilder(), { wrapper });
+    const { result } = setup();
     
     act(() => {
       result.current.addLayer(1);
@@ -126,7 +129,7 @@ describe('BurgerBuilderContext', () => {
   });
 
   it('should get ingredient by id', () => {
-    const { result } = renderHook(() => useBurgerBuilder(), { wrapper });
+    const { result } = setup();
     
     act(() => {
       result.current.setIngredients(mockIngredients);
@@ -137,7 +140,7 @@ describe('BurgerBuilderContext', () => {
   });
 
   it('should return undefined for non-existent ingredient', () => {
-    const { result } = renderHook(() => useBurgerBuilder(), { wrapper });
+    const { result } = setup();
     
     act(() => {
       result.current.setIngredients(mockIngredients);
@@ -148,7 +151,7 @@ describe('BurgerBuilderContext', () => {
   });
 
   it('should calculate total price correctly', () => {
-    const { result } = renderHook(() => useBurgerBuilder(), { wrapper });
+    const { result } = setup();
     
     act(() => {
       result.current.setIngredients(mockIngredients);
@@ -162,7 +165,7 @@ describe('BurgerBuilderContext', () => {
   });
 
   it('should return 0 for total price with no layers', () => {
-    const { result } = renderHook(() => useBurgerBuilder(), { wrapper });
+    const { result } = setup();
     
     act(() => {
       result.current.setIngredients(mockIngredients);
@@ -177,4 +180,3 @@ describe('BurgerBuilderContext', () => {
     }).toThrow('useBurgerBuilder must be used within a BurgerBuilderProvider');
   });
 });
-
