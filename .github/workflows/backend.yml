@@ -96,7 +96,7 @@ jobs:
         chmod 600 ~/.ssh/config
         
         # Get Private IPs of BE VMSS instances
-        BE_IPS=$(az vmss nic list -g musa-project2-rg --vmss-name burger-vmss-be --query "[].ipConfigurations[0].privateIPAddress" -o tsv)
+        BE_IPS=$(az vmss nic list -g musa-project2-rg --vmss-name burger-vmss-be-musa --query "[].ipConfigurations[0].privateIPAddress" -o tsv)
         
         for IP in $BE_IPS; do
           echo "Deploying to $IP..."
